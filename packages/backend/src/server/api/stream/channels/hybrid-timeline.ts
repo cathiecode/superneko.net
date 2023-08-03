@@ -40,9 +40,12 @@ class HybridTimelineChannel extends Channel {
 
 	@bindThis
 	private async onNote(note: Packed<'Note'>) {
+		// LTLに流さない設定だったら無視する
+		if (note.user.muteInLocalListing) return;
+
 		// チャンネルの投稿ではなく、自分自身の投稿 または
 		// チャンネルの投稿ではなく、その投稿のユーザーをフォローしている または
-		// チャンネルの投稿ではなく、全体公開のローカルの投稿 または
+		// チャンネルの投稿ではなく、全体公開のローカルの投稿であり、LTLに流さないが設定されていない または
 		// フォローしているチャンネルの投稿 の場合だけ
 		if (!(
 			(note.channelId == null && this.user!.id === note.userId) ||

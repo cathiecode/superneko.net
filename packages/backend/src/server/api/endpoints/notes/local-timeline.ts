@@ -77,6 +77,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> {
 				.andWhere('note.id > :minId', { minId: this.idService.genId(new Date(Date.now() - (1000 * 60 * 60 * 24 * 10))) }) // 10日前まで
 				.andWhere('(note.visibility = \'public\') AND (note.userHost IS NULL)')
 				.innerJoinAndSelect('note.user', 'user')
+				.andWhere('user.muteInLocalListing IS FALSE')
 				.leftJoinAndSelect('note.reply', 'reply')
 				.leftJoinAndSelect('note.renote', 'renote')
 				.leftJoinAndSelect('reply.user', 'replyUser')

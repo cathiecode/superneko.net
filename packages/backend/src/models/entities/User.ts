@@ -189,6 +189,12 @@ export class User {
 	})
 	public isDeleted: boolean;
 
+	@Column('boolean', {
+		default: false,
+		comment: 'Whether posts from the User should be listed in LTL.',
+	})
+	public muteInLocalListing: boolean | null;
+
 	@Column('varchar', {
 		length: 128, array: true, default: '{}',
 	})
