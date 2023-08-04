@@ -8,7 +8,7 @@ db:
   port: 54312
   db: test-misskey
   user: postgres
-  pass: ''
+  pass: foobar
 redis:
   host: 127.0.0.1
   port: 56312
