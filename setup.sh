@@ -9,9 +9,10 @@ if [ $(whoami) != root ]; then
   exit 1
 fi
 
-mkdir /misskey
-
-cd /misskey
+if [ $(pwd) != /misskey ]; then
+  echo "please create env in /misskey"
+  exit 1
+fi
 
 apt-get update
 
