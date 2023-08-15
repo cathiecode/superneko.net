@@ -43,6 +43,7 @@ services:
       - .config/docker.env
     volumes:
       - ./db:/var/lib/postgresql/data
+      - ./.config/postgres.conf:/etc/postgresql/postgresql.conf
     healthcheck:
       test: "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"
       interval: 5s
