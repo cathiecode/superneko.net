@@ -40,6 +40,8 @@ apt-get install -y snapd
 
 snap install --classic certbot
 
+ufw allow 80
+
 certbot certonly --nginx -d $DOMAIN -d www.$DOMAIN -m $EMAIL
 
 cp src/certbot-refresh /etc/cron.weekly/
