@@ -9,6 +9,10 @@ if [ $(whoami) != root ]; then
   exit 1
 fi
 
+mkdir /misskey
+
+cd /misskey
+
 apt-get update
 
 apt-get -y upgrade
@@ -59,4 +63,12 @@ apt-get install -y fail2ban
 
 systemctl enable fail2ban
 
+apt install -y rclone
+
+# backup cron
+cp src/backup /etc/cron.daily/
+chmod +x /etc/cron.daily/backup
+
 echo "Ready to run!"
+
+echo "Now please set up your S3 account by rclone config
