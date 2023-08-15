@@ -44,7 +44,7 @@ ufw allow 80
 
 certbot certonly --nginx -d $DOMAIN -d www.$DOMAIN -m $EMAIL
 
-cp src/certbot-refresh /etc/cron.weekly/
+cp src/certbot-refresh /etc/cron.monthly/
 
 chmod +x /etc/cron.weekly/certbot-refresh
 
