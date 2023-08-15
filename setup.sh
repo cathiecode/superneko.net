@@ -2,7 +2,7 @@
 set -eu
 
 EMAIL=catihecode+letsencrypt@gmail.com
-DOMAIN=staging.superneko.net
+DOMAIN=superneko.net
 
 if [ $(whoami) != root ]; then
   echo "is not root"
