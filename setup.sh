@@ -51,7 +51,7 @@ certbot certonly --nginx -d $DOMAIN -d www.$DOMAIN -m $EMAIL
 
 cp src/certbot-refresh /etc/cron.monthly/
 
-chmod +x /etc/cron.weekly/certbot-refresh
+chmod +x /etc/cron.monthly/certbot-refresh
 
 # nginx config
 sed -e "s/<DOMAIN>/$DOMAIN/" src/nginx-misskey.conf > /etc/nginx/conf.d/misskey.conf
