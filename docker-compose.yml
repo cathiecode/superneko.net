@@ -2,7 +2,7 @@ version: "3"
 
 services:
   web:
-    build: .
+    image: ghcr.io/cathiecode/superneko.net:release
     restart: always
     links:
       - db
