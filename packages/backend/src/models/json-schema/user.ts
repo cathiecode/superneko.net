@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
 export const packedUserLiteSchema = {
 	type: 'object',
 	properties: {
@@ -168,6 +173,15 @@ export const packedUserDetailedNotMeOnlySchema = {
 				},
 			},
 		},
+		verifiedLinks: {
+			type: 'array',
+			nullable: false, optional: false,
+			items: {
+				type: 'string',
+				nullable: false, optional: false,
+				format: 'url',
+			},
+		},
 		followersCount: {
 			type: 'number',
 			nullable: false, optional: false,
@@ -263,6 +277,10 @@ export const packedUserDetailedNotMeOnlySchema = {
 			type: 'string',
 			nullable: false, optional: true,
 		},
+		notify: {
+			type: 'string',
+			nullable: false, optional: true,
+		},
 		//#endregion
 	},
 } as const;
@@ -320,6 +338,11 @@ export const packedMeDetailedOnlySchema = {
 			type: 'boolean',
 			nullable: false, optional: false,
 		},
+		twoFactorBackupCodesStock: {
+			type: 'string',
+			enum: ['full', 'partial', 'none'],
+			nullable: false, optional: false,
+		},
 		hideOnlineStatus: {
 			type: 'boolean',
 			nullable: false, optional: false,
@@ -368,13 +391,9 @@ export const packedMeDetailedOnlySchema = {
 				nullable: false, optional: false,
 			},
 		},
-		mutingNotificationTypes: {
-			type: 'array',
-			nullable: true, optional: false,
-			items: {
-				type: 'string',
-				nullable: false, optional: false,
-			},
+		notificationRecieveConfig: {
+			type: 'object',
+			nullable: false, optional: false,
 		},
 		emailNotificationTypes: {
 			type: 'array',
