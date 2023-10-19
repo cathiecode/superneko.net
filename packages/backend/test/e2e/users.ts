@@ -70,6 +70,7 @@ describe('ユーザー', () => {
 			avatarBlurhash: user.avatarBlurhash,
 			isBot: user.isBot,
 			isCat: user.isCat,
+			muteInLocalListing: user.muteInLocalListing,
 			instance: user.instance,
 			emojis: user.emojis,
 			onlineStatus: user.onlineStatus,
