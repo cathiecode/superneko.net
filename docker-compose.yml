@@ -69,6 +69,7 @@ services:
     volumes:
       - ./letsencrypt:/etc/letsencrypt
       - ./rclone:/root/.config/rclone
+      - ./www:/var/www/html
 
 #  meilisearch:
 #    restart: always
