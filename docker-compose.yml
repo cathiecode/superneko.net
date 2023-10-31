@@ -57,10 +57,16 @@ services:
       - external_network
     volumes:
       - ./www:/var/www/html
-      - ./letsecrypt:/etc/letsencrypt
+      - ./letsencrypt:/etc/letsencrypt
+      - ./src/nginx/conf.d:/etc/nginx/conf.d
     ports:
       - 80:80
-  
+      - 443:443
+    depends_on:
+      web:
+        condition: service_healthy
+
+
   cron:
     build: ./src/crond
     networks:
