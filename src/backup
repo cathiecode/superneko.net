@@ -1,5 +1,0 @@
-#!/bin/sh
-
-tar czf /var/tmp/misskey-backup.tar.gz /misskey
-
-rclone copyto /var/tmp/misskey-backup.tar.gz backup:/superneko-net-backup/misskey-db.tar.gz

@@ -20,7 +20,7 @@ services:
       - external_network
     volumes:
       - ./files:/misskey/files
-      - ./.config:/misskey/.config:ro
+      - ./src/misskey/.config:/misskey/.config:ro
 
   redis:
     restart: always
@@ -40,14 +40,35 @@ services:
     networks:
       - internal_network
     env_file:
-      - .config/docker.env
+      - src/docker.env
     volumes:
       - ./db:/var/lib/postgresql/data
-      - ./.config/postgres.conf:/etc/postgresql/postgresql.conf
+      - ./src/postgres.conf:/etc/postgresql/postgresql.conf
     healthcheck:
       test: "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"
       interval: 5s
       retries: 20
+
+  proxy:
+    restart: always
+    image: nginx:1
+    networks:
+      - internal_network
+      - external_network
+    volumes:
+      - ./www:/var/www/html
+      - ./letsecrypt:/etc/letsencrypt
+    ports:
+      - 80:80
+  
+  cron:
+    build: ./src/crond
+    networks:
+      - internal_network
+      - external_network
+    volumes:
+      - ./letsencrypt:/etc/letsencrypt
+      - ./rclone:/root/.config/rclone
 
 #  meilisearch:
 #    restart: always

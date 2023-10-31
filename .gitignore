@@ -71,3 +71,6 @@ temp
 /packages
 /fluent-emojis
 /misskey-assets
+/www
+/letsencrypt
+/rclone

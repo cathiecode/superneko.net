@@ -1,0 +1,10 @@
+#!/bin/sh
+
+pg_dump -h db -U misskey-user -d misskey > /var/tmp/misskey-backup
+
+tar czf /var/tmp/misskey-backup.tar.gz /var/tmp/misskey-backup
+
+rclone copyto /var/tmp/misskey-backup.tar.gz backup:/superneko-net-backup/misskey-db.tar.gz
+
+rm /var/tmp/misskey-backup
+rm /var/tmp/misskey-backup.tar.gz
