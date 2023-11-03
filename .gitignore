@@ -67,7 +67,3 @@ temp
 
 # VSCode addon
 .favorites.json
-
-/www
-/letsencrypt
-/rclone
