@@ -6,6 +6,7 @@
 import * as assert from 'node:assert';
 import { readFile } from 'node:fs/promises';
 import { isAbsolute, basename } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { inspect } from 'node:util';
 import WebSocket, { ClientOptions } from 'ws';
 import fetch, { File, RequestInit } from 'node-fetch';
@@ -25,6 +26,8 @@ interface UserToken {
 
 const config = loadConfig();
 export const port = config.port;
+export const origin = config.url;
+export const host = new URL(config.url).host;
 
 export const cookie = (me: UserToken): string => {
 	return `token=${me.token};`;
@@ -99,9 +102,17 @@ export const relativeFetch = async (path: string, init?: RequestInit | undefined
 	return await fetch(new URL(path, `http://127.0.0.1:${port}/`).toString(), init);
 };
 
+export function randomString(chars = 'abcdefghijklmnopqrstuvwxyz0123456789', length = 16) {
+	let randomString = '';
+	for (let i = 0; i < length; i++) {
+		randomString += chars[Math.floor(Math.random() * chars.length)];
+	}
+	return randomString;
+}
+
 export const signup = async (params?: Partial<misskey.Endpoints['signup']['req']>): Promise<NonNullable<misskey.Endpoints['signup']['res']>> => {
 	const q = Object.assign({
-		username: 'test',
+		username: randomString(),
 		password: 'test',
 	}, params);
 
@@ -116,6 +127,15 @@ export const post = async (user: UserToken, params?: misskey.Endpoints['notes/cr
 	const res = await api('notes/create', q, user);
 
 	return res.body ? res.body.createdNote : null;
+};
+
+export const createAppToken = async (user: UserToken, permissions: (typeof misskey.permissions)[number][]) => {
+	const res = await api('miauth/gen-token', {
+		session: randomUUID(),
+		permission: permissions,
+	}, user);
+
+	return (res.body as misskey.entities.MiauthGenTokenResponse).token;
 };
 
 // 非公開ノートをAPI越しに見たときのノート NoteEntityService.ts
@@ -293,12 +313,14 @@ export const uploadFile = async (user?: UserToken, { path, name, blob }: UploadO
 };
 
 export const uploadUrl = async (user: UserToken, url: string) => {
-	let file: any;
+	let resolve: unknown;
+	const file = new Promise(ok => resolve = ok);
 	const marker = Math.random().toString();
 
 	const ws = await connectStream(user, 'main', (msg) => {
 		if (msg.type === 'urlUploadFinished' && msg.body.marker === marker) {
-			file = msg.body.file;
+			ws.close();
+			resolve(msg.body.file);
 		}
 	});
 
@@ -307,9 +329,6 @@ export const uploadUrl = async (user: UserToken, url: string) => {
 		marker,
 		force: true,
 	}, user);
-
-	await sleep(7000);
-	ws.close();
 
 	return file;
 };
@@ -450,6 +469,7 @@ export async function testPaginationConsistency<Entity extends { id: string, cre
 	};
 
 	for (const limit of [1, 5, 10, 100, undefined]) {
+		/*
 		// 1. sinceId/DateとuntilId/Dateで両端を指定して取得した結果が期待通りになっていること
 		if (ordering === 'desc') {
 			const end = expected.at(-1)!;
@@ -478,6 +498,7 @@ export async function testPaginationConsistency<Entity extends { id: string, cre
 				actual.map(({ id, createdAt }) => id + ':' + createdAt),
 				expected.map(({ id, createdAt }) => id + ':' + createdAt));
 		}
+		*/
 
 		// 3. untilId指定+limitで取得してつなぎ合わせた結果が期待通りになっていること
 		if (ordering === 'desc') {

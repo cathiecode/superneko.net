@@ -320,7 +320,6 @@ administrator: "ຜູ້ບໍລິຫານ"
 token: "ໂທເຄັນ"
 share: "ແບ່ງປັນ"
 notFound: "ບໍ່ພົບ"
-cacheClear: "ລຶບລ້າງແຄສ"
 help: "ຊ່ວຍເຫຼືອ"
 close: "ປິດ"
 invites: "ເຊີນ"
@@ -407,7 +406,6 @@ _theme:
 _sfx:
   note: "ບັນທຶກ"
   notification: "ການແຈ້ງເຕືອນ"
-  chat: "ແຊ໋ດ"
 _2fa:
   renewTOTPCancel: "ບໍ່​ແມ່ນ​ຕອນ​ນີ້"
 _widgets:

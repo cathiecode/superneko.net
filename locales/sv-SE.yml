@@ -118,7 +118,6 @@ sensitive: "Känsligt innehåll"
 add: "Lägg till"
 reaction: "Reaktioner"
 reactions: "Reaktioner"
-reactionSetting: "Reaktioner som ska visas i reaktionsväljaren"
 reactionSettingDescription2: "Dra för att omordna, klicka för att radera, tryck \"+\" för att lägga till."
 rememberNoteVisibility: "Komihåg notvisningsinställningar"
 attachCancel: "Ta bort bilaga"
@@ -507,7 +506,6 @@ _theme:
 _sfx:
   note: "Noter"
   notification: "Notifikationer"
-  chat: "Chatt"
   antenna: "Antenner"
 _2fa:
   renewTOTPCancel: "Nej tack"

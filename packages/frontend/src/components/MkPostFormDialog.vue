@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { } from 'vue';
+import { shallowRef } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkModal from '@/components/MkModal.vue';
 import MkPostForm from '@/components/MkPostForm.vue';
@@ -22,6 +22,7 @@ const props = defineProps<{
 	mention?: Misskey.entities.User;
 	specified?: Misskey.entities.User;
 	initialText?: string;
+	initialCw?: string;
 	initialVisibility?: typeof Misskey.noteVisibilities;
 	initialFiles?: Misskey.entities.DriveFile[];
 	initialLocalOnly?: boolean;
@@ -30,18 +31,17 @@ const props = defineProps<{
 	instant?: boolean;
 	fixed?: boolean;
 	autofocus?: boolean;
-	updateMode?: boolean;
 }>();
 
 const emit = defineEmits<{
 	(ev: 'closed'): void;
 }>();
 
-let modal = $shallowRef<InstanceType<typeof MkModal>>();
-let form = $shallowRef<InstanceType<typeof MkPostForm>>();
+const modal = shallowRef<InstanceType<typeof MkModal>>();
+const form = shallowRef<InstanceType<typeof MkPostForm>>();
 
 function onPosted() {
-	modal.close({
+	modal.value.close({
 		useSendAnimation: true,
 	});
 }

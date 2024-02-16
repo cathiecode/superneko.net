@@ -34,6 +34,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</MkInput>
 					</FormSplit>
 
+					<MkInput v-model="impressumUrl" type="url">
+						<template #label>{{ i18n.ts.impressumUrl }}</template>
+						<template #prefix><i class="ti ti-link"></i></template>
+						<template #caption>{{ i18n.ts.impressumDescription }}</template>
+					</MkInput>
+
 					<MkTextarea v-model="pinnedUsers">
 						<template #label>{{ i18n.ts.pinnedUsers }}</template>
 						<template #caption>{{ i18n.ts.pinnedUsersDescription }}</template>
@@ -81,16 +87,50 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</FormSection>
 
 					<FormSection>
-						<template #label>DeepL Translation</template>
+						<template #label>Misskey® Fan-out Timeline Technology™ (FTT)</template>
 
 						<div class="_gaps_m">
-							<MkInput v-model="deeplAuthKey">
-								<template #prefix><i class="ti ti-key"></i></template>
-								<template #label>DeepL Auth Key</template>
-							</MkInput>
-							<MkSwitch v-model="deeplIsPro">
-								<template #label>Pro account</template>
+							<MkSwitch v-model="enableFanoutTimeline">
+								<template #label>{{ i18n.ts.enable }}</template>
+								<template #caption>{{ i18n.ts._serverSettings.fanoutTimelineDescription }}</template>
 							</MkSwitch>
+
+							<MkSwitch v-model="enableFanoutTimelineDbFallback">
+								<template #label>{{ i18n.ts._serverSettings.fanoutTimelineDbFallback }}</template>
+								<template #caption>{{ i18n.ts._serverSettings.fanoutTimelineDbFallbackDescription }}</template>
+							</MkSwitch>
+
+							<MkInput v-model="perLocalUserUserTimelineCacheMax" type="number">
+								<template #label>perLocalUserUserTimelineCacheMax</template>
+							</MkInput>
+
+							<MkInput v-model="perRemoteUserUserTimelineCacheMax" type="number">
+								<template #label>perRemoteUserUserTimelineCacheMax</template>
+							</MkInput>
+
+							<MkInput v-model="perUserHomeTimelineCacheMax" type="number">
+								<template #label>perUserHomeTimelineCacheMax</template>
+							</MkInput>
+
+							<MkInput v-model="perUserListTimelineCacheMax" type="number">
+								<template #label>perUserListTimelineCacheMax</template>
+							</MkInput>
+						</div>
+					</FormSection>
+
+					<FormSection>
+						<template #label>{{ i18n.ts._ad.adsSettings }}</template>
+
+						<div class="_gaps_m">
+							<div class="_gaps_s">
+								<MkInput v-model="notesPerOneAd" :min="0" type="number">
+									<template #label>{{ i18n.ts._ad.notesPerOneAd }}</template>
+									<template #caption>{{ i18n.ts._ad.setZeroToDisable }}</template>
+								</MkInput>
+								<MkInfo v-if="notesPerOneAd > 0 && notesPerOneAd < 20" :warn="true">
+									{{ i18n.ts._ad.adsTooClose }}
+								</MkInfo>
+							</div>
 						</div>
 					</FormSection>
 				</div>
@@ -108,11 +148,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { } from 'vue';
+import { ref, computed } from 'vue';
 import XHeader from './_header_.vue';
 import MkSwitch from '@/components/MkSwitch.vue';
 import MkInput from '@/components/MkInput.vue';
 import MkTextarea from '@/components/MkTextarea.vue';
+import MkInfo from '@/components/MkInfo.vue';
 import FormSection from '@/components/form/section.vue';
 import FormSplit from '@/components/form/split.vue';
 import FormSuspense from '@/components/form/suspense.vue';
@@ -122,58 +163,76 @@ import { i18n } from '@/i18n.js';
 import { definePageMetadata } from '@/scripts/page-metadata.js';
 import MkButton from '@/components/MkButton.vue';
 
-let name: string | null = $ref(null);
-let shortName: string | null = $ref(null);
-let description: string | null = $ref(null);
-let maintainerName: string | null = $ref(null);
-let maintainerEmail: string | null = $ref(null);
-let pinnedUsers: string = $ref('');
-let cacheRemoteFiles: boolean = $ref(false);
-let cacheRemoteSensitiveFiles: boolean = $ref(false);
-let enableServiceWorker: boolean = $ref(false);
-let swPublicKey: any = $ref(null);
-let swPrivateKey: any = $ref(null);
-let deeplAuthKey: string = $ref('');
-let deeplIsPro: boolean = $ref(false);
+const name = ref<string | null>(null);
+const shortName = ref<string | null>(null);
+const description = ref<string | null>(null);
+const maintainerName = ref<string | null>(null);
+const maintainerEmail = ref<string | null>(null);
+const impressumUrl = ref<string | null>(null);
+const pinnedUsers = ref<string>('');
+const cacheRemoteFiles = ref<boolean>(false);
+const cacheRemoteSensitiveFiles = ref<boolean>(false);
+const enableServiceWorker = ref<boolean>(false);
+const swPublicKey = ref<string | null>(null);
+const swPrivateKey = ref<string | null>(null);
+const enableFanoutTimeline = ref<boolean>(false);
+const enableFanoutTimelineDbFallback = ref<boolean>(false);
+const perLocalUserUserTimelineCacheMax = ref<number>(0);
+const perRemoteUserUserTimelineCacheMax = ref<number>(0);
+const perUserHomeTimelineCacheMax = ref<number>(0);
+const perUserListTimelineCacheMax = ref<number>(0);
+const notesPerOneAd = ref<number>(0);
 
 async function init(): Promise<void> {
 	const meta = await os.api('admin/meta');
-	name = meta.name;
-	shortName = meta.shortName;
-	description = meta.description;
-	maintainerName = meta.maintainerName;
-	maintainerEmail = meta.maintainerEmail;
-	pinnedUsers = meta.pinnedUsers.join('\n');
-	cacheRemoteFiles = meta.cacheRemoteFiles;
-	cacheRemoteSensitiveFiles = meta.cacheRemoteSensitiveFiles;
-	enableServiceWorker = meta.enableServiceWorker;
-	swPublicKey = meta.swPublickey;
-	swPrivateKey = meta.swPrivateKey;
-	deeplAuthKey = meta.deeplAuthKey;
-	deeplIsPro = meta.deeplIsPro;
+	name.value = meta.name;
+	shortName.value = meta.shortName;
+	description.value = meta.description;
+	maintainerName.value = meta.maintainerName;
+	maintainerEmail.value = meta.maintainerEmail;
+	impressumUrl.value = meta.impressumUrl;
+	pinnedUsers.value = meta.pinnedUsers.join('\n');
+	cacheRemoteFiles.value = meta.cacheRemoteFiles;
+	cacheRemoteSensitiveFiles.value = meta.cacheRemoteSensitiveFiles;
+	enableServiceWorker.value = meta.enableServiceWorker;
+	swPublicKey.value = meta.swPublickey;
+	swPrivateKey.value = meta.swPrivateKey;
+	enableFanoutTimeline.value = meta.enableFanoutTimeline;
+	enableFanoutTimelineDbFallback.value = meta.enableFanoutTimelineDbFallback;
+	perLocalUserUserTimelineCacheMax.value = meta.perLocalUserUserTimelineCacheMax;
+	perRemoteUserUserTimelineCacheMax.value = meta.perRemoteUserUserTimelineCacheMax;
+	perUserHomeTimelineCacheMax.value = meta.perUserHomeTimelineCacheMax;
+	perUserListTimelineCacheMax.value = meta.perUserListTimelineCacheMax;
+	notesPerOneAd.value = meta.notesPerOneAd;
 }
 
-function save(): void {
-	os.apiWithDialog('admin/update-meta', {
-		name,
-		shortName: shortName === '' ? null : shortName,
-		description,
-		maintainerName,
-		maintainerEmail,
-		pinnedUsers: pinnedUsers.split('\n'),
-		cacheRemoteFiles,
-		cacheRemoteSensitiveFiles,
-		enableServiceWorker,
-		swPublicKey,
-		swPrivateKey,
-		deeplAuthKey,
-		deeplIsPro,
-	}).then(() => {
-		fetchInstance();
+async function save(): void {
+	await os.apiWithDialog('admin/update-meta', {
+		name: name.value,
+		shortName: shortName.value === '' ? null : shortName.value,
+		description: description.value,
+		maintainerName: maintainerName.value,
+		maintainerEmail: maintainerEmail.value,
+		impressumUrl: impressumUrl.value,
+		pinnedUsers: pinnedUsers.value.split('\n'),
+		cacheRemoteFiles: cacheRemoteFiles.value,
+		cacheRemoteSensitiveFiles: cacheRemoteSensitiveFiles.value,
+		enableServiceWorker: enableServiceWorker.value,
+		swPublicKey: swPublicKey.value,
+		swPrivateKey: swPrivateKey.value,
+		enableFanoutTimeline: enableFanoutTimeline.value,
+		enableFanoutTimelineDbFallback: enableFanoutTimelineDbFallback.value,
+		perLocalUserUserTimelineCacheMax: perLocalUserUserTimelineCacheMax.value,
+		perRemoteUserUserTimelineCacheMax: perRemoteUserUserTimelineCacheMax.value,
+		perUserHomeTimelineCacheMax: perUserHomeTimelineCacheMax.value,
+		perUserListTimelineCacheMax: perUserListTimelineCacheMax.value,
+		notesPerOneAd: notesPerOneAd.value,
 	});
+
+	fetchInstance();
 }
 
-const headerTabs = $computed(() => []);
+const headerTabs = computed(() => []);
 
 definePageMetadata({
 	title: i18n.ts.general,

@@ -105,8 +105,21 @@ redis:
 #  # You can specify more ioredis options...
 #  #username: example-username
 
+#redisForTimelines:
+#  host: localhost
+#  port: 6379
+#  #family: 0  # 0=Both, 4=IPv4, 6=IPv6
+#  #pass: example-pass
+#  #prefix: example-prefix
+#  #db: 1
+#  # You can specify more ioredis options...
+#  #username: example-username
+
 #   ┌───────────────────────────┐
 #───┘ MeiliSearch configuration └─────────────────────────────
+
+# You can set scope to local (default value) or global 
+# (include notes from remote).
 
 #meilisearch:
 #  host: localhost
@@ -153,7 +166,7 @@ id: 'aidx'
 
 # Job rate limiter
 #deliverJobPerSec: 128
-#inboxJobPerSec: 16
+#inboxJobPerSec: 32
 #relashionshipJobPerSec: 64
 
 # Job attempts
@@ -200,6 +213,9 @@ proxyRemoteFiles: true
 # Sign to ActivityPub GET request (default: true)
 signToActivityPubGet: true
 
+# For security reasons, uploading attachments from the intranet is prohibited,
+# but exceptions can be made from the following settings. Default value is "undefined". 
+# Read changelog to learn more (Improvements of 12.90.0 (2021/09/04)).
 #allowedPrivateNetworks: [
 #  '127.0.0.1/32'
 #]

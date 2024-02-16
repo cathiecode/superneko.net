@@ -15,6 +15,7 @@ export const meta = {
 
 	requireCredential: true,
 	requireRolePolicy: 'canManageCustomEmojis',
+	kind: 'write:admin:emoji',
 
 	errors: {
 		noSuchEmoji: {
@@ -73,6 +74,15 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			if (ps.fileId) {
 				driveFile = await this.driveFilesRepository.findOneBy({ id: ps.fileId });
 				if (driveFile == null) throw new ApiError(meta.errors.noSuchFile);
+			}
+			const emoji = await this.customEmojiService.getEmojiById(ps.id);
+			if (emoji != null) {
+				if (ps.name !== emoji.name) {
+					const isDuplicate = await this.customEmojiService.checkDuplicate(ps.name);
+					if (isDuplicate) throw new ApiError(meta.errors.sameNameEmojiExists);
+				}
+			} else {
+				throw new ApiError(meta.errors.noSuchEmoji);
 			}
 
 			await this.customEmojiService.update(ps.id, {

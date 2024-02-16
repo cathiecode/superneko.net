@@ -80,6 +80,15 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 		});
 	}
 
+	async function toggleWithReplies() {
+		os.apiWithDialog('following/update', {
+			userId: user.id,
+			withReplies: !user.withReplies,
+		}).then(() => {
+			user.withReplies = !user.withReplies;
+		});
+	}
+
 	async function toggleNotify() {
 		os.apiWithDialog('following/update', {
 			userId: user.id,
@@ -103,6 +112,12 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 		});
 
 		return !confirm.canceled;
+	}
+
+	async function userInfoUpdate() {
+		os.apiWithDialog('federation/update-remote-user', {
+			userId: user.id,
+		});
 	}
 
 	async function invalidateFollow() {
@@ -168,7 +183,7 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 			const canonical = user.host === null ? `@${user.username}` : `@${user.username}@${user.host}`;
 			os.post({ specified: user, initialText: `${canonical} ` });
 		},
-	}, null, {
+	}, { type: 'divider' }, {
 		icon: 'ti ti-pencil',
 		text: i18n.ts.editMemo,
 		action: () => {
@@ -282,13 +297,17 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 		// フォローしたとしても user.isFollowing はリアルタイム更新されないので不便なため
 		//if (user.isFollowing) {
 		menu = menu.concat([{
+			icon: user.withReplies ? 'ti ti-messages-off' : 'ti ti-messages',
+			text: user.withReplies ? i18n.ts.hideRepliesToOthersInTimeline : i18n.ts.showRepliesToOthersInTimeline,
+			action: toggleWithReplies,
+		}, {
 			icon: user.notify === 'none' ? 'ti ti-bell' : 'ti ti-bell-off',
 			text: user.notify === 'none' ? i18n.ts.notifyNotes : i18n.ts.unnotifyNotes,
 			action: toggleNotify,
 		}]);
 		//}
 
-		menu = menu.concat([null, {
+		menu = menu.concat([{ type: 'divider' }, {
 			icon: user.isMuted ? 'ti ti-eye' : 'ti ti-eye-off',
 			text: user.isMuted ? i18n.ts.unmute : i18n.ts.mute,
 			action: toggleMute,
@@ -310,15 +329,23 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 			}]);
 		}
 
-		menu = menu.concat([null, {
+		menu = menu.concat([{ type: 'divider' }, {
 			icon: 'ti ti-exclamation-circle',
 			text: i18n.ts.reportAbuse,
 			action: reportAbuse,
 		}]);
 	}
 
+	if (user.host !== null) {
+		menu = menu.concat([{ type: 'divider' }, {
+			icon: 'ti ti-refresh',
+			text: i18n.ts.updateRemoteUser,
+			action: userInfoUpdate,
+		}]);
+	}
+
 	if (defaultStore.state.devMode) {
-		menu = menu.concat([null, {
+		menu = menu.concat([{ type: 'divider' }, {
 			icon: 'ti ti-id',
 			text: i18n.ts.copyUserId,
 			action: () => {
@@ -328,7 +355,7 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 	}
 
 	if ($i && meId === user.id) {
-		menu = menu.concat([null, {
+		menu = menu.concat([{ type: 'divider' }, {
 			icon: 'ti ti-pencil',
 			text: i18n.ts.editProfile,
 			action: () => {
@@ -338,7 +365,7 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 	}
 
 	if (userActions.length > 0) {
-		menu = menu.concat([null, ...userActions.map(action => ({
+		menu = menu.concat([{ type: 'divider' }, ...userActions.map(action => ({
 			icon: 'ti ti-plug',
 			text: action.title,
 			action: () => {
