@@ -157,7 +157,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			.leftJoinAndSelect('note.reply', 'reply')
 			.leftJoinAndSelect('note.renote', 'renote')
 			.leftJoinAndSelect('reply.user', 'replyUser')
-			.leftJoinAndSelect('renote.user', 'renoteUser')
+			.leftJoinAndSelect('renote.user', 'renoteUser');
 
 		this.queryService.generateVisibilityQuery(query, me);
 		if (me) this.queryService.generateMutedUserQuery(query, me);
