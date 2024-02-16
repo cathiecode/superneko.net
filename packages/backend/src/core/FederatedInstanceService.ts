@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -56,7 +56,7 @@ export class FederatedInstanceService implements OnApplicationShutdown {
 
 		if (index == null) {
 			const i = await this.instancesRepository.insert({
-				id: this.idService.genId(),
+				id: this.idService.gen(),
 				host,
 				firstRetrievedAt: new Date(),
 			}).then(x => this.instancesRepository.findOneByOrFail(x.identifiers[0]));

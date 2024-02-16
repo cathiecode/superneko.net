@@ -1,9 +1,10 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 import { Inject, Injectable } from '@nestjs/common';
+import * as Redis from 'ioredis';
 import { DI } from '@/di-symbols.js';
 import type { EmojisRepository, NoteReactionsRepository, UsersRepository, NotesRepository } from '@/models/_.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
@@ -26,12 +27,15 @@ import { UtilityService } from '@/core/UtilityService.js';
 import { UserBlockingService } from '@/core/UserBlockingService.js';
 import { CustomEmojiService } from '@/core/CustomEmojiService.js';
 import { RoleService } from '@/core/RoleService.js';
+import { FeaturedService } from '@/core/FeaturedService.js';
+import { trackPromise } from '@/misc/promise-tracker.js';
 
-const FALLBACK = '❤';
+const FALLBACK = '\u2764';
+const PER_NOTE_REACTION_USER_PAIR_CACHE_MAX = 16;
 
 const legacies: Record<string, string> = {
 	'like': '👍',
-	'love': '❤', // ここに記述する場合は異体字セレクタを入れない
+	'love': '\u2764', // ハート、異体字セレクタを入れない
 	'laugh': '😆',
 	'hmm': '🤔',
 	'surprise': '😮',
@@ -66,6 +70,9 @@ const decodeCustomEmojiRegexp = /^:([\w+-]+)(?:@([\w.-]+))?:$/;
 @Injectable()
 export class ReactionService {
 	constructor(
+		@Inject(DI.redis)
+		private redisClient: Redis.Redis,
+
 		@Inject(DI.usersRepository)
 		private usersRepository: UsersRepository,
 
@@ -86,6 +93,7 @@ export class ReactionService {
 		private noteEntityService: NoteEntityService,
 		private userBlockingService: UserBlockingService,
 		private idService: IdService,
+		private featuredService: FeaturedService,
 		private globalEventService: GlobalEventService,
 		private apRendererService: ApRendererService,
 		private apDeliverManagerService: ApDeliverManagerService,
@@ -112,7 +120,7 @@ export class ReactionService {
 		let reaction = _reaction ?? FALLBACK;
 
 		if (note.reactionAcceptance === 'likeOnly' || ((note.reactionAcceptance === 'likeOnlyForRemote' || note.reactionAcceptance === 'nonSensitiveOnlyForLocalLikeOnlyForRemote') && (user.host != null))) {
-			reaction = '❤️';
+			reaction = '\u2764';
 		} else if (_reaction) {
 			const custom = reaction.match(isCustomEmojiRegexp);
 			if (custom) {
@@ -131,7 +139,7 @@ export class ReactionService {
 						reaction = reacterHost ? `:${name}@${reacterHost}:` : `:${name}:`;
 
 						// センシティブ
-						if ((note.reactionAcceptance === 'nonSensitiveOnly') && emoji.isSensitive) {
+						if ((note.reactionAcceptance === 'nonSensitiveOnly' || note.reactionAcceptance === 'nonSensitiveOnlyForLocalLikeOnlyForRemote') && emoji.isSensitive) {
 							reaction = FALLBACK;
 						}
 					} else {
@@ -142,13 +150,12 @@ export class ReactionService {
 					reaction = FALLBACK;
 				}
 			} else {
-				reaction = this.normalize(reaction ?? null);
+				reaction = this.normalize(reaction);
 			}
 		}
 
 		const record: MiNoteReaction = {
-			id: this.idService.genId(),
-			createdAt: new Date(),
+			id: this.idService.gen(),
 			noteId: note.id,
 			userId: user.id,
 			reaction,
@@ -182,10 +189,30 @@ export class ReactionService {
 		await this.notesRepository.createQueryBuilder().update()
 			.set({
 				reactions: () => sql,
-				... (!user.isBot ? { score: () => '"score" + 1' } : {}),
+				...(note.reactionAndUserPairCache.length < PER_NOTE_REACTION_USER_PAIR_CACHE_MAX ? {
+					reactionAndUserPairCache: () => `array_append("reactionAndUserPairCache", '${user.id}/${reaction}')`,
+				} : {}),
 			})
 			.where('id = :id', { id: note.id })
 			.execute();
+
+		// 30%の確率、セルフではない、3日以内に投稿されたノートの場合ハイライト用ランキング更新
+		if (
+			Math.random() < 0.3 &&
+			note.userId !== user.id &&
+			(Date.now() - this.idService.parse(note.id).date.getTime()) < 1000 * 60 * 60 * 24 * 3
+		) {
+			if (note.channelId != null) {
+				if (note.replyId == null) {
+					this.featuredService.updateInChannelNotesRanking(note.channelId, note.id, 1);
+				}
+			} else {
+				if (note.visibility === 'public' && note.userHost == null && note.replyId == null) {
+					this.featuredService.updateGlobalNotesRanking(note.id, 1);
+					this.featuredService.updatePerUserNotesRanking(note.userId, note.id, 1);
+				}
+			}
+		}
 
 		const meta = await this.metaService.fetch();
 
@@ -242,7 +269,7 @@ export class ReactionService {
 				}
 			}
 
-			dm.execute();
+			trackPromise(dm.execute());
 		}
 		//#endregion
 	}
@@ -271,11 +298,10 @@ export class ReactionService {
 		await this.notesRepository.createQueryBuilder().update()
 			.set({
 				reactions: () => sql,
+				reactionAndUserPairCache: () => `array_remove("reactionAndUserPairCache", '${user.id}/${exist.reaction}')`,
 			})
 			.where('id = :id', { id: note.id })
 			.execute();
-
-		if (!user.isBot) this.notesRepository.decrement({ id: note.id }, 'score', 1);
 
 		this.globalEventService.publishNoteStream(note.id, 'unreacted', {
 			reaction: this.decodeReaction(exist.reaction).reaction,
@@ -291,7 +317,7 @@ export class ReactionService {
 				dm.addDirectRecipe(reactee as MiRemoteUser);
 			}
 			dm.addFollowersRecipe();
-			dm.execute();
+			trackPromise(dm.execute());
 		}
 		//#endregion
 	}

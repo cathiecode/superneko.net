@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -12,12 +12,6 @@ import { MiDriveFile } from './DriveFile.js';
 export class MiChannel {
 	@PrimaryColumn(id())
 	public id: string;
-
-	@Index()
-	@Column('timestamp with time zone', {
-		comment: 'The created date of the Channel.',
-	})
-	public createdAt: Date;
 
 	@Index()
 	@Column('timestamp with time zone', {
@@ -99,4 +93,9 @@ export class MiChannel {
 		default: false,
 	})
 	public isSensitive: boolean;
+
+	@Column('boolean', {
+		default: true,
+	})
+	public allowRenoteToExternal: boolean;
 }

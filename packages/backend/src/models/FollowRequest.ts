@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -12,11 +12,6 @@ import { MiUser } from './User.js';
 export class MiFollowRequest {
 	@PrimaryColumn(id())
 	public id: string;
-
-	@Column('timestamp with time zone', {
-		comment: 'The created date of the FollowRequest.',
-	})
-	public createdAt: Date;
 
 	@Index()
 	@Column({
@@ -49,6 +44,11 @@ export class MiFollowRequest {
 		comment: 'id of Follow Activity.',
 	})
 	public requestId: string | null;
+
+	@Column('boolean', {
+		default: false,
+	})
+	public withReplies: boolean;
 
 	//#region Denormalized fields
 	@Column('varchar', {

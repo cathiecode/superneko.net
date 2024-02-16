@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -11,6 +11,7 @@ import type { Packed } from '@/misc/json-schema.js';
 import type { MiBlocking } from '@/models/Blocking.js';
 import type { MiUser } from '@/models/User.js';
 import { bindThis } from '@/decorators.js';
+import { IdService } from '@/core/IdService.js';
 import { UserEntityService } from './UserEntityService.js';
 
 @Injectable()
@@ -20,6 +21,7 @@ export class BlockingEntityService {
 		private blockingsRepository: BlockingsRepository,
 
 		private userEntityService: UserEntityService,
+		private idService: IdService,
 	) {
 	}
 
@@ -32,10 +34,10 @@ export class BlockingEntityService {
 
 		return await awaitAll({
 			id: blocking.id,
-			createdAt: blocking.createdAt.toISOString(),
+			createdAt: this.idService.parse(blocking.id).date.toISOString(),
 			blockeeId: blocking.blockeeId,
 			blockee: this.userEntityService.pack(blocking.blockeeId, me, {
-				detail: true,
+				schema: 'UserDetailedNotMe',
 			}),
 		});
 	}

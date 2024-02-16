@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -13,9 +13,6 @@ import { MiFlash } from './Flash.js';
 export class MiFlashLike {
 	@PrimaryColumn(id())
 	public id: string;
-
-	@Column('timestamp with time zone')
-	public createdAt: Date;
 
 	@Index()
 	@Column(id())

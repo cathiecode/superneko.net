@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -11,12 +11,6 @@ import { MiUser } from './User.js';
 export class MiAnnouncement {
 	@PrimaryColumn(id())
 	public id: string;
-
-	@Index()
-	@Column('timestamp with time zone', {
-		comment: 'The created date of the Announcement.',
-	})
-	public createdAt: Date;
 
 	@Column('timestamp with time zone', {
 		comment: 'The updated date of the Announcement.',
@@ -44,7 +38,7 @@ export class MiAnnouncement {
 		length: 256, nullable: false,
 		default: 'info',
 	})
-	public icon: string;
+	public icon: 'info' | 'warning' | 'error' | 'success';
 
 	// normal ... お知らせページ掲載
 	// banner ... お知らせページ掲載 + バナー表示
@@ -53,7 +47,7 @@ export class MiAnnouncement {
 		length: 256, nullable: false,
 		default: 'normal',
 	})
-	public display: string;
+	public display: 'normal' | 'banner' | 'dialog';
 
 	@Column('boolean', {
 		default: false,
@@ -71,6 +65,12 @@ export class MiAnnouncement {
 		default: false,
 	})
 	public forExistingUsers: boolean;
+
+	@Index()
+	@Column('boolean', {
+		default: false,
+	})
+	public silence: boolean;
 
 	@Index()
 	@Column({

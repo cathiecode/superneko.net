@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -13,6 +13,7 @@ import type { MiUser } from '@/models/User.js';
 import type { MiPage } from '@/models/Page.js';
 import type { MiDriveFile } from '@/models/DriveFile.js';
 import { bindThis } from '@/decorators.js';
+import { IdService } from '@/core/IdService.js';
 import { UserEntityService } from './UserEntityService.js';
 import { DriveFileEntityService } from './DriveFileEntityService.js';
 
@@ -30,6 +31,7 @@ export class PageEntityService {
 
 		private userEntityService: UserEntityService,
 		private driveFileEntityService: DriveFileEntityService,
+		private idService: IdService,
 	) {
 	}
 
@@ -85,10 +87,10 @@ export class PageEntityService {
 
 		return await awaitAll({
 			id: page.id,
-			createdAt: page.createdAt.toISOString(),
+			createdAt: this.idService.parse(page.id).date.toISOString(),
 			updatedAt: page.updatedAt.toISOString(),
 			userId: page.userId,
-			user: this.userEntityService.pack(page.user ?? page.userId, me), // { detail: true } すると無限ループするので注意
+			user: this.userEntityService.pack(page.user ?? page.userId, me), // { schema: 'UserDetailed' } すると無限ループするので注意
 			content: page.content,
 			variables: page.variables,
 			title: page.title,
@@ -102,7 +104,7 @@ export class PageEntityService {
 			eyeCatchingImage: page.eyeCatchingImageId ? await this.driveFileEntityService.pack(page.eyeCatchingImageId) : null,
 			attachedFiles: this.driveFileEntityService.packMany((await Promise.all(attachedFiles)).filter((x): x is MiDriveFile => x != null)),
 			likedCount: page.likedCount,
-			isLiked: meId ? await this.pageLikesRepository.exist({ where: { pageId: page.id, userId: meId } }) : undefined,
+			isLiked: meId ? await this.pageLikesRepository.exists({ where: { pageId: page.id, userId: meId } }) : undefined,
 		});
 	}
 

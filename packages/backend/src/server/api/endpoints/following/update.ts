@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -57,8 +57,9 @@ export const paramDef = {
 	properties: {
 		userId: { type: 'string', format: 'misskey:id' },
 		notify: { type: 'string', enum: ['normal', 'none'] },
+		withReplies: { type: 'boolean' },
 	},
-	required: ['userId', 'notify'],
+	required: ['userId'],
 } as const;
 
 @Injectable()
@@ -98,7 +99,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			await this.followingsRepository.update({
 				id: exist.id,
 			}, {
-				notify: ps.notify === 'none' ? null : ps.notify,
+				notify: ps.notify != null ? (ps.notify === 'none' ? null : ps.notify) : undefined,
+				withReplies: ps.withReplies != null ? ps.withReplies : undefined,
 			});
 
 			return await this.userEntityService.pack(follower.id, me);

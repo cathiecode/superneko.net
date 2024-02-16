@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -12,6 +12,7 @@ import type { } from '@/models/Blocking.js';
 import type { MiUser } from '@/models/User.js';
 import type { MiFollowing } from '@/models/Following.js';
 import { bindThis } from '@/decorators.js';
+import { IdService } from '@/core/IdService.js';
 import { UserEntityService } from './UserEntityService.js';
 
 type LocalFollowerFollowing = MiFollowing & {
@@ -45,6 +46,7 @@ export class FollowingEntityService {
 		private followingsRepository: FollowingsRepository,
 
 		private userEntityService: UserEntityService,
+		private idService: IdService,
 	) {
 	}
 
@@ -83,14 +85,14 @@ export class FollowingEntityService {
 
 		return await awaitAll({
 			id: following.id,
-			createdAt: following.createdAt.toISOString(),
+			createdAt: this.idService.parse(following.id).date.toISOString(),
 			followeeId: following.followeeId,
 			followerId: following.followerId,
 			followee: opts.populateFollowee ? this.userEntityService.pack(following.followee ?? following.followeeId, me, {
-				detail: true,
+				schema: 'UserDetailedNotMe',
 			}) : undefined,
 			follower: opts.populateFollower ? this.userEntityService.pack(following.follower ?? following.followerId, me, {
-				detail: true,
+				schema: 'UserDetailedNotMe',
 			}) : undefined,
 		});
 	}

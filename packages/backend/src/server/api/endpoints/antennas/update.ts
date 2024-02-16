@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -62,6 +62,7 @@ export const paramDef = {
 			type: 'string',
 		} },
 		caseSensitive: { type: 'boolean' },
+		localOnly: { type: 'boolean' },
 		withReplies: { type: 'boolean' },
 		withFile: { type: 'boolean' },
 		notify: { type: 'boolean' },
@@ -116,6 +117,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				excludeKeywords: ps.excludeKeywords,
 				users: ps.users,
 				caseSensitive: ps.caseSensitive,
+				localOnly: ps.localOnly,
 				withReplies: ps.withReplies,
 				withFile: ps.withFile,
 				notify: ps.notify,

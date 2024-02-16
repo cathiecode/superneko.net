@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -72,7 +72,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (!previousMemo) {
 				await this.userMemosRepository.insert({
-					id: this.idService.genId(),
+					id: this.idService.gen(),
 					userId: me.id,
 					targetUserId: target.id,
 					memo: ps.memo,

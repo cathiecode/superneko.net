@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -222,6 +222,13 @@ async function composeNotification(data: PushNotificationDataMap[keyof PushNotif
 					return [data.body.header ?? data.body.body, {
 						body: data.body.header ? data.body.body : '',
 						icon: data.body.icon ?? undefined,
+						data,
+					}];
+
+				case 'test':
+					return [t('_notification.testNotification'), {
+						body: t('_notification.notificationWillBeDisplayedLikeThis'),
+						badge: iconUrl('bell'),
 						data,
 					}];
 

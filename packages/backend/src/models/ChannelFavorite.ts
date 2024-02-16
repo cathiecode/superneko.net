@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -13,12 +13,6 @@ import { MiChannel } from './Channel.js';
 export class MiChannelFavorite {
 	@PrimaryColumn(id())
 	public id: string;
-
-	@Index()
-	@Column('timestamp with time zone', {
-		comment: 'The created date of the ChannelFavorite.',
-	})
-	public createdAt: Date;
 
 	@Index()
 	@Column({

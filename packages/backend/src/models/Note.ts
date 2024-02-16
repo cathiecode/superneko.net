@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -11,23 +11,9 @@ import { MiChannel } from './Channel.js';
 import type { MiDriveFile } from './DriveFile.js';
 
 @Entity('note')
-@Index('IDX_NOTE_TAGS', { synchronize: false })
-@Index('IDX_NOTE_MENTIONS', { synchronize: false })
-@Index('IDX_NOTE_VISIBLE_USER_IDS', { synchronize: false })
 export class MiNote {
 	@PrimaryColumn(id())
 	public id: string;
-
-	@Index()
-	@Column('timestamp with time zone', {
-		comment: 'The created date of the Note.',
-	})
-	public createdAt: Date;
-
-	@Column('timestamp with time zone', {
-		default: null,
-	})
-	public updatedAt: Date | null;
 
 	@Index()
 	@Column({
@@ -144,32 +130,26 @@ export class MiNote {
 	})
 	public url: string | null;
 
-	@Column('integer', {
-		default: 0, select: false,
-	})
-	public score: number;
-
-	@Index()
+	@Index('IDX_NOTE_FILE_IDS', { synchronize: false })
 	@Column({
 		...id(),
 		array: true, default: '{}',
 	})
 	public fileIds: MiDriveFile['id'][];
 
-	@Index()
 	@Column('varchar', {
 		length: 256, array: true, default: '{}',
 	})
 	public attachedFileTypes: string[];
 
-	@Index()
+	@Index('IDX_NOTE_VISIBLE_USER_IDS', { synchronize: false })
 	@Column({
 		...id(),
 		array: true, default: '{}',
 	})
 	public visibleUserIds: MiUser['id'][];
 
-	@Index()
+	@Index('IDX_NOTE_MENTIONS', { synchronize: false })
 	@Column({
 		...id(),
 		array: true, default: '{}',
@@ -182,11 +162,16 @@ export class MiNote {
 	public mentionedRemoteUsers: string;
 
 	@Column('varchar', {
+		length: 1024, array: true, default: '{}',
+	})
+	public reactionAndUserPairCache: string[];
+
+	@Column('varchar', {
 		length: 128, array: true, default: '{}',
 	})
 	public emojis: string[];
 
-	@Index()
+	@Index('IDX_NOTE_TAGS', { synchronize: false })
 	@Column('varchar', {
 		length: 128, array: true, default: '{}',
 	})

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -13,11 +13,6 @@ import { MiAnnouncement } from './Announcement.js';
 export class MiAnnouncementRead {
 	@PrimaryColumn(id())
 	public id: string;
-
-	@Column('timestamp with time zone', {
-		comment: 'The created date of the AnnouncementRead.',
-	})
-	public createdAt: Date;
 
 	@Index()
 	@Column(id())

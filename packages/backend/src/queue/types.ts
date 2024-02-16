@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -15,7 +15,9 @@ export type DeliverJobData = {
 	/** Actor */
 	user: ThinUser;
 	/** Activity */
-	content: unknown;
+	content: string;
+	/** Digest header */
+	digest: string;
 	/** inbox URL to deliver */
 	to: string;
 	/** whether it is sharedInbox */
@@ -32,6 +34,7 @@ export type RelationshipJobData = {
 	to: ThinUser;
 	silent?: boolean;
 	requestId?: string;
+	withReplies?: boolean;
 }
 
 export type DbJobData<T extends keyof DbJobMap> = DbJobMap[T];
@@ -79,6 +82,7 @@ export type DbUserDeleteJobData = {
 export type DbUserImportJobData = {
 	user: ThinUser;
 	fileId: MiDriveFile['id'];
+	withReplies?: boolean;
 };
 
 export type DBAntennaImportJobData = {
@@ -89,6 +93,7 @@ export type DBAntennaImportJobData = {
 export type DbUserImportToDbJobData = {
 	user: ThinUser;
 	target: string;
+	withReplies?: boolean;
 };
 
 export type ObjectStorageJobData = ObjectStorageFileJobData | Record<string, unknown>;

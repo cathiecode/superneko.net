@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -13,11 +13,6 @@ export const webhookEventTypes = ['mention', 'unfollow', 'follow', 'followed', '
 export class MiWebhook {
 	@PrimaryColumn(id())
 	public id: string;
-
-	@Column('timestamp with time zone', {
-		comment: 'The created date of the Antenna.',
-	})
-	public createdAt: Date;
 
 	@Index()
 	@Column({

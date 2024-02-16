@@ -1,16 +1,17 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 import { IsNull, LessThanOrEqual, MoreThan, Brackets } from 'typeorm';
 import { Inject, Injectable } from '@nestjs/common';
 import JSON5 from 'json5';
-import type { AdsRepository, UsersRepository } from '@/models/_.js';
+import type { AdsRepository } from '@/models/_.js';
 import { MAX_NOTE_TEXT_LENGTH } from '@/const.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { MetaService } from '@/core/MetaService.js';
+import { InstanceActorService } from '@/core/InstanceActorService.js';
 import type { Config } from '@/config.js';
 import { DI } from '@/di-symbols.js';
 import { DEFAULT_POLICIES } from '@/core/RoleService.js';
@@ -108,6 +109,18 @@ export const meta = {
 				type: 'string',
 				optional: false, nullable: true,
 			},
+			enableMcaptcha: {
+				type: 'boolean',
+				optional: false, nullable: false,
+			},
+			mcaptchaSiteKey: {
+				type: 'string',
+				optional: false, nullable: true,
+			},
+			mcaptchaInstanceUrl: {
+				type: 'string',
+				optional: false, nullable: true,
+			},
 			enableRecaptcha: {
 				type: 'boolean',
 				optional: false, nullable: false,
@@ -164,22 +177,41 @@ export const meta = {
 					type: 'object',
 					optional: false, nullable: false,
 					properties: {
-						place: {
+						id: {
 							type: 'string',
 							optional: false, nullable: false,
+							format: 'id',
+							example: 'xxxxxxxxxx',
 						},
 						url: {
 							type: 'string',
 							optional: false, nullable: false,
 							format: 'url',
 						},
+						place: {
+							type: 'string',
+							optional: false, nullable: false,
+						},
+						ratio: {
+							type: 'number',
+							optional: false, nullable: false,
+						},
 						imageUrl: {
 							type: 'string',
 							optional: false, nullable: false,
 							format: 'url',
 						},
+						dayOfWeek: {
+							type: 'integer',
+							optional: false, nullable: false,
+						},
 					},
 				},
+			},
+			notesPerOneAd: {
+				type: 'number',
+				optional: false, nullable: false,
+				default: 0,
 			},
 			requireSetup: {
 				type: 'boolean',
@@ -214,11 +246,11 @@ export const meta = {
 						type: 'boolean',
 						optional: false, nullable: false,
 					},
-					localTimeLine: {
+					localTimeline: {
 						type: 'boolean',
 						optional: false, nullable: false,
 					},
-					globalTimeLine: {
+					globalTimeline: {
 						type: 'boolean',
 						optional: false, nullable: false,
 					},
@@ -245,6 +277,38 @@ export const meta = {
 					},
 				},
 			},
+			backgroundImageUrl: {
+				type: 'string',
+				optional: false, nullable: true,
+			},
+			impressumUrl: {
+				type: 'string',
+				optional: false, nullable: true,
+			},
+			logoImageUrl: {
+				type: 'string',
+				optional: false, nullable: true,
+			},
+			privacyPolicyUrl: {
+				type: 'string',
+				optional: false, nullable: true,
+			},
+			serverRules: {
+				type: 'array',
+				optional: false, nullable: false,
+				items: {
+					type: 'string',
+				},
+			},
+			themeColor: {
+				type: 'string',
+				optional: false, nullable: true,
+			},
+			policies: {
+				type: 'object',
+				optional: false, nullable: false,
+				ref: 'RolePolicies',
+			},
 		},
 	},
 } as const;
@@ -263,14 +327,12 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		@Inject(DI.config)
 		private config: Config,
 
-		@Inject(DI.usersRepository)
-		private usersRepository: UsersRepository,
-
 		@Inject(DI.adsRepository)
 		private adsRepository: AdsRepository,
 
 		private userEntityService: UserEntityService,
 		private metaService: MetaService,
+		private instanceActorService: InstanceActorService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const instance = await this.metaService.fetch(true);
@@ -299,10 +361,15 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				tosUrl: instance.termsOfServiceUrl,
 				repositoryUrl: instance.repositoryUrl,
 				feedbackUrl: instance.feedbackUrl,
+				impressumUrl: instance.impressumUrl,
+				privacyPolicyUrl: instance.privacyPolicyUrl,
 				disableRegistration: instance.disableRegistration,
 				emailRequiredForSignup: instance.emailRequiredForSignup,
 				enableHcaptcha: instance.enableHcaptcha,
 				hcaptchaSiteKey: instance.hcaptchaSiteKey,
+				enableMcaptcha: instance.enableMcaptcha,
+				mcaptchaSiteKey: instance.mcaptchaSitekey,
+				mcaptchaInstanceUrl: instance.mcaptchaInstanceUrl,
 				enableRecaptcha: instance.enableRecaptcha,
 				recaptchaSiteKey: instance.recaptchaSiteKey,
 				enableTurnstile: instance.enableTurnstile,
@@ -329,6 +396,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					imageUrl: ad.imageUrl,
 					dayOfWeek: ad.dayOfWeek,
 				})),
+				notesPerOneAd: instance.notesPerOneAd,
 				enableEmail: instance.enableEmail,
 				enableServiceWorker: instance.enableServiceWorker,
 
@@ -343,9 +411,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				...(ps.detail ? {
 					cacheRemoteFiles: instance.cacheRemoteFiles,
 					cacheRemoteSensitiveFiles: instance.cacheRemoteSensitiveFiles,
-					requireSetup: (await this.usersRepository.countBy({
-						host: IsNull(),
-					})) === 0,
+					requireSetup: !await this.instanceActorService.realLocalUsersPresent(),
 				} : {}),
 			};
 

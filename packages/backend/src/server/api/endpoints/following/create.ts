@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -71,6 +71,7 @@ export const paramDef = {
 	type: 'object',
 	properties: {
 		userId: { type: 'string', format: 'misskey:id' },
+		withReplies: { type: 'boolean' }
 	},
 	required: ['userId'],
 } as const;
@@ -100,7 +101,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			});
 
 			// Check if already following
-			const exist = await this.followingsRepository.exist({
+			const exist = await this.followingsRepository.exists({
 				where: {
 					followerId: follower.id,
 					followeeId: followee.id,
@@ -112,7 +113,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 
 			try {
-				await this.userFollowingService.follow(follower, followee);
+				await this.userFollowingService.follow(follower, followee, { withReplies: ps.withReplies });
 			} catch (e) {
 				if (e instanceof IdentifiableError) {
 					if (e.id === '710e8fb0-b8c3-4922-be49-d5d93d8e6a6e') throw new ApiError(meta.errors.blocking);

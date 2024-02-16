@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -18,6 +18,7 @@ import { MiAnnouncement } from '@/models/Announcement.js';
 import { MiAnnouncementRead } from '@/models/AnnouncementRead.js';
 import { MiAntenna } from '@/models/Antenna.js';
 import { MiApp } from '@/models/App.js';
+import { MiAvatarDecoration } from '@/models/AvatarDecoration.js';
 import { MiAuthSession } from '@/models/AuthSession.js';
 import { MiBlocking } from '@/models/Blocking.js';
 import { MiChannelFollowing } from '@/models/ChannelFollowing.js';
@@ -36,7 +37,6 @@ import { MiHashtag } from '@/models/Hashtag.js';
 import { MiInstance } from '@/models/Instance.js';
 import { MiMeta } from '@/models/Meta.js';
 import { MiModerationLog } from '@/models/ModerationLog.js';
-import { MiMutedNote } from '@/models/MutedNote.js';
 import { MiMuting } from '@/models/Muting.js';
 import { MiRenoteMuting } from '@/models/RenoteMuting.js';
 import { MiNote } from '@/models/Note.js';
@@ -62,7 +62,7 @@ import { MiUserIp } from '@/models/UserIp.js';
 import { MiUserKeypair } from '@/models/UserKeypair.js';
 import { MiUserList } from '@/models/UserList.js';
 import { MiUserListFavorite } from '@/models/UserListFavorite.js';
-import { MiUserListJoining } from '@/models/UserListJoining.js';
+import { MiUserListMembership } from '@/models/UserListMembership.js';
 import { MiUserNotePining } from '@/models/UserNotePining.js';
 import { MiUserPending } from '@/models/UserPending.js';
 import { MiUserProfile } from '@/models/UserProfile.js';
@@ -76,6 +76,8 @@ import { MiRoleAssignment } from '@/models/RoleAssignment.js';
 import { MiFlash } from '@/models/Flash.js';
 import { MiFlashLike } from '@/models/FlashLike.js';
 import { MiUserMemo } from '@/models/UserMemo.js';
+import { MiBubbleGameRecord } from '@/models/BubbleGameRecord.js';
+import { MiReversiGame } from '@/models/ReversiGame.js';
 
 import { Config } from '@/config.js';
 import MisskeyLogger from '@/logger.js';
@@ -130,6 +132,7 @@ export const entities = [
 	MiMeta,
 	MiInstance,
 	MiApp,
+	MiAvatarDecoration,
 	MiAuthSession,
 	MiAccessToken,
 	MiUser,
@@ -138,7 +141,7 @@ export const entities = [
 	MiUserPublickey,
 	MiUserList,
 	MiUserListFavorite,
-	MiUserListJoining,
+	MiUserListMembership,
 	MiUserNotePining,
 	MiUserSecurityKey,
 	MiUsedUsername,
@@ -174,7 +177,6 @@ export const entities = [
 	MiPromoNote,
 	MiPromoRead,
 	MiRelay,
-	MiMutedNote,
 	MiChannel,
 	MiChannelFollowing,
 	MiChannelFavorite,
@@ -190,6 +192,8 @@ export const entities = [
 	MiFlash,
 	MiFlashLike,
 	MiUserMemo,
+	MiBubbleGameRecord,
+	MiReversiGame,
 	...charts,
 ];
 
@@ -207,22 +211,24 @@ export function createPostgresDataSource(config: Config) {
 			statement_timeout: 1000 * 10,
 			...config.db.extra,
 		},
-		replication: config.dbReplications ? {
-			master: {
-				host: config.db.host,
-				port: config.db.port,
-				username: config.db.user,
-				password: config.db.pass,
-				database: config.db.db,
+		...(config.dbReplications ? {
+			replication: {
+				master: {
+					host: config.db.host,
+					port: config.db.port,
+					username: config.db.user,
+					password: config.db.pass,
+					database: config.db.db,
+				},
+				slaves: config.dbSlaves!.map(rep => ({
+					host: rep.host,
+					port: rep.port,
+					username: rep.user,
+					password: rep.pass,
+					database: rep.db,
+				})),
 			},
-			slaves: config.dbSlaves!.map(rep => ({
-				host: rep.host,
-				port: rep.port,
-				username: rep.user,
-				password: rep.pass,
-				database: rep.db,
-			})),
-		} : undefined,
+		} : {}),
 		synchronize: process.env.NODE_ENV === 'test',
 		dropSchema: process.env.NODE_ENV === 'test',
 		cache: !config.db.disableCache && process.env.NODE_ENV !== 'test' ? { // dbをcloseしても何故かredisのコネクションが内部的に残り続けるようで、テストの際に支障が出るため無効にする(キャッシュも含めてテストしたいため本当は有効にしたいが...)

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import { Inject, Injectable } from '@nestjs/common';
 import sharp from 'sharp';
-import { sharpBmp } from 'sharp-read-bmp';
+import { sharpBmp } from '@misskey-dev/sharp-read-bmp';
 import { IsNull } from 'typeorm';
 import { DeleteObjectCommandInput, PutObjectCommandInput, NoSuchKey } from '@aws-sdk/client-s3';
 import { DI } from '@/di-symbols.js';
@@ -564,8 +564,7 @@ export class DriveService {
 		const folder = await fetchFolder();
 
 		let file = new MiDriveFile();
-		file.id = this.idService.genId();
-		file.createdAt = new Date();
+		file.id = this.idService.gen();
 		file.userId = user ? user.id : null;
 		file.userHost = user ? user.host : null;
 		file.folderId = folder !== null ? folder.id : null;
@@ -656,7 +655,7 @@ export class DriveService {
 	public async updateFile(file: MiDriveFile, values: Partial<MiDriveFile>, updater: MiUser) {
 		const alwaysMarkNsfw = (await this.roleService.getUserPolicies(file.userId)).alwaysMarkNsfw;
 
-		if (values.name && !this.driveFileEntityService.validateFileName(file.name)) {
+		if (values.name != null && !this.driveFileEntityService.validateFileName(values.name)) {
 			throw new DriveService.InvalidFileNameError();
 		}
 

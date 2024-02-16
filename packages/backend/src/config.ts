@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -47,6 +47,7 @@ type Source = {
 	redis: RedisOptionsSource;
 	redisForPubsub?: RedisOptionsSource;
 	redisForJobQueue?: RedisOptionsSource;
+	redisForTimelines?: RedisOptionsSource;
 	meilisearch?: {
 		host: string;
 		port: string;
@@ -73,10 +74,10 @@ type Source = {
 
 	deliverJobConcurrency?: number;
 	inboxJobConcurrency?: number;
-	relashionshipJobConcurrency?: number;
+	relationshipJobConcurrency?: number;
 	deliverJobPerSec?: number;
 	inboxJobPerSec?: number;
-	relashionshipJobPerSec?: number;
+	relationshipJobPerSec?: number;
 	deliverJobMaxAttempts?: number;
 	inboxJobMaxAttempts?: number;
 
@@ -134,10 +135,10 @@ export type Config = {
 	outgoingAddressFamily: 'ipv4' | 'ipv6' | 'dual' | undefined;
 	deliverJobConcurrency: number | undefined;
 	inboxJobConcurrency: number | undefined;
-	relashionshipJobConcurrency: number | undefined;
+	relationshipJobConcurrency: number | undefined;
 	deliverJobPerSec: number | undefined;
 	inboxJobPerSec: number | undefined;
-	relashionshipJobPerSec: number | undefined;
+	relationshipJobPerSec: number | undefined;
 	deliverJobMaxAttempts: number | undefined;
 	inboxJobMaxAttempts: number | undefined;
 	proxyRemoteFiles: boolean | undefined;
@@ -161,6 +162,7 @@ export type Config = {
 	redis: RedisOptions & RedisOptionsSource;
 	redisForPubsub: RedisOptions & RedisOptionsSource;
 	redisForJobQueue: RedisOptions & RedisOptionsSource;
+	redisForTimelines: RedisOptions & RedisOptionsSource;
 	perChannelMaxNoteCacheCount: number;
 	perUserNotificationsMaxCount: number;
 	deactivateAntennaThreshold: number;
@@ -227,6 +229,7 @@ export function loadConfig(): Config {
 		redis,
 		redisForPubsub: config.redisForPubsub ? convertRedisOptions(config.redisForPubsub, host) : redis,
 		redisForJobQueue: config.redisForJobQueue ? convertRedisOptions(config.redisForJobQueue, host) : redis,
+		redisForTimelines: config.redisForTimelines ? convertRedisOptions(config.redisForTimelines, host) : redis,
 		id: config.id,
 		proxy: config.proxy,
 		proxySmtp: config.proxySmtp,
@@ -238,10 +241,10 @@ export function loadConfig(): Config {
 		outgoingAddressFamily: config.outgoingAddressFamily,
 		deliverJobConcurrency: config.deliverJobConcurrency,
 		inboxJobConcurrency: config.inboxJobConcurrency,
-		relashionshipJobConcurrency: config.relashionshipJobConcurrency,
+		relationshipJobConcurrency: config.relationshipJobConcurrency,
 		deliverJobPerSec: config.deliverJobPerSec,
 		inboxJobPerSec: config.inboxJobPerSec,
-		relashionshipJobPerSec: config.relashionshipJobPerSec,
+		relationshipJobPerSec: config.relationshipJobPerSec,
 		deliverJobMaxAttempts: config.deliverJobMaxAttempts,
 		inboxJobMaxAttempts: config.inboxJobMaxAttempts,
 		proxyRemoteFiles: config.proxyRemoteFiles,
@@ -255,7 +258,7 @@ export function loadConfig(): Config {
 		clientEntry: clientManifest['src/_boot_.ts'],
 		clientManifestExists: clientManifestExists,
 		perChannelMaxNoteCacheCount: config.perChannelMaxNoteCacheCount ?? 1000,
-		perUserNotificationsMaxCount: config.perUserNotificationsMaxCount ?? 300,
+		perUserNotificationsMaxCount: config.perUserNotificationsMaxCount ?? 500,
 		deactivateAntennaThreshold: config.deactivateAntennaThreshold ?? (1000 * 60 * 60 * 24 * 7),
 		pidFile: config.pidFile,
 	};

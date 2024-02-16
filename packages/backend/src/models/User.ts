@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -12,12 +12,6 @@ import { MiDriveFile } from './DriveFile.js';
 export class MiUser {
 	@PrimaryColumn(id())
 	public id: string;
-
-	@Index()
-	@Column('timestamp with time zone', {
-		comment: 'The created date of the User.',
-	})
-	public createdAt: Date;
 
 	@Index()
 	@Column('timestamp with time zone', {
@@ -144,6 +138,17 @@ export class MiUser {
 	})
 	public bannerBlurhash: string | null;
 
+	@Column('jsonb', {
+		default: [],
+	})
+	public avatarDecorations: {
+		id: string;
+		angle?: number;
+		flipH?: boolean;
+		offsetX?: number;
+		offsetY?: number;
+	}[];
+
 	@Index()
 	@Column('varchar', {
 		length: 128, array: true, default: '{}',
@@ -186,6 +191,11 @@ export class MiUser {
 		comment: 'Whether the User is explorable.',
 	})
 	public isExplorable: boolean;
+
+	@Column('boolean', {
+		default: false,
+	})
+	public isHibernated: boolean;
 
 	// アカウントが削除されたかどうかのフラグだが、完全に削除される際は物理削除なので実質削除されるまでの「削除が進行しているかどうか」のフラグ
 	@Column('boolean', {

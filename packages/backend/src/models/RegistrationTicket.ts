@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -22,9 +22,6 @@ export class MiRegistrationTicket {
 		nullable: true,
 	})
 	public expiresAt: Date | null;
-
-	@Column('timestamp with time zone')
-	public createdAt: Date;
 
 	@ManyToOne(type => MiUser, {
 		onDelete: 'CASCADE',

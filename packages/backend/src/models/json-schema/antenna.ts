@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -63,6 +63,11 @@ export const packedAntennaSchema = {
 			},
 		},
 		caseSensitive: {
+			type: 'boolean',
+			optional: false, nullable: false,
+			default: false,
+		},
+		localOnly: {
 			type: 'boolean',
 			optional: false, nullable: false,
 			default: false,

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -52,8 +52,7 @@ export class CreateSystemUserService {
 			if (exist) throw new Error('the user is already exists');
 
 			account = await transactionalEntityManager.insert(MiUser, {
-				id: this.idService.genId(),
-				createdAt: new Date(),
+				id: this.idService.gen(),
 				username: username,
 				usernameLower: username.toLowerCase(),
 				host: null,
