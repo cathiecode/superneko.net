@@ -3598,6 +3598,7 @@ export type components = {
         }[];
       isBot?: boolean;
       isCat?: boolean;
+      muteInLocalListing?: boolean;
       instance?: {
         name: string | null;
         softwareName: string | null;
@@ -18878,6 +18879,7 @@ export type operations = {
           preventAiLearning?: boolean;
           isBot?: boolean;
           isCat?: boolean;
+          muteInLocalListing?: boolean;
           injectFeaturedNote?: boolean;
           receiveAnnouncementEmail?: boolean;
           alwaysMarkNsfw?: boolean;
