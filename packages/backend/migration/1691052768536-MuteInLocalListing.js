@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: cathiecode
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
 export class MuteInLocalListing1691052768536 {
     name = 'MuteInLocalListing1691052768536'
 
