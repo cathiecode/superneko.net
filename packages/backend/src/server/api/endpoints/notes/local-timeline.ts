@@ -153,7 +153,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			ps.sinceId, ps.untilId)
 			.andWhere('(note.visibility = \'public\') AND (note.userHost IS NULL) AND (note.channelId IS NULL)')
 			.innerJoinAndSelect('note.user', 'user')
-			.andWhere('user.muteInLocalListing IS FALSE')
 			.leftJoinAndSelect('note.reply', 'reply')
 			.leftJoinAndSelect('note.renote', 'renote')
 			.leftJoinAndSelect('reply.user', 'replyUser')
