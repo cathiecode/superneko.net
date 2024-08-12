@@ -3598,7 +3598,6 @@ export type components = {
         }[];
       isBot?: boolean;
       isCat?: boolean;
-      muteInLocalListing?: boolean;
       instance?: {
         name: string | null;
         softwareName: string | null;

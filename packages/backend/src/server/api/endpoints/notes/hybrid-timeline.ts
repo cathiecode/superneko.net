@@ -201,7 +201,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				}
 			}))
 			.innerJoinAndSelect('note.user', 'user')
-			.andWhere('user.muteInLocalListing IS FALSE')
 			.leftJoinAndSelect('note.reply', 'reply')
 			.leftJoinAndSelect('note.renote', 'renote')
 			.leftJoinAndSelect('reply.user', 'replyUser')

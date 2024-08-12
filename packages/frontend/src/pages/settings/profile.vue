@@ -94,7 +94,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div class="_gaps_m">
 			<MkSwitch v-model="profile.isCat">{{ i18n.ts.flagAsCat }}<template #caption>{{ i18n.ts.flagAsCatDescription }}</template></MkSwitch>
 			<MkSwitch v-model="profile.isBot">{{ i18n.ts.flagAsBot }}<template #caption>{{ i18n.ts.flagAsBotDescription }}</template></MkSwitch>
-			<MkSwitch v-model="profile.muteInLocalListing">{{ i18n.ts.muteInLocalListing }}<template #caption>{{ i18n.ts.muteInLocalListingDescription }}</template></MkSwitch>
 		</div>
 	</MkFolder>
 
@@ -144,7 +143,6 @@ const profile = reactive({
 	lang: $i.lang,
 	isBot: $i.isBot ?? false,
 	isCat: $i.isCat ?? false,
-	muteInLocalListing: $i.muteInLocalListing ?? false,
 });
 
 watch(() => profile, () => {
@@ -194,7 +192,6 @@ function save() {
 		lang: profile.lang || null,
 		isBot: !!profile.isBot,
 		isCat: !!profile.isCat,
-		muteInLocalListing: !!profile.muteInLocalListing,
 	});
 	globalEvents.emit('requestClearPageCache');
 	claimAchievement('profileFilled');
