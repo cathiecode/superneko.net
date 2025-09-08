@@ -228,7 +228,7 @@ if (!mock) {
 	useTooltip(buttonEl, async (showing) => {
 		if (buttonEl.value == null) return;
 
-		const reactions = await misskeyApi('notes/reactions', {
+		const reactions = await misskeyApiGet('notes/reactions', {
 			noteId: props.noteId,
 			type: props.reaction,
 			limit: 10,

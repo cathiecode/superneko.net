@@ -21,7 +21,6 @@ import type { CustomEmojiService } from '../CustomEmojiService.js';
 import type { ReactionService } from '../ReactionService.js';
 import type { UserEntityService } from './UserEntityService.js';
 import type { DriveFileEntityService } from './DriveFileEntityService.js';
-import type { CacheService } from '../CacheService.js';
 
 // is-renote.tsとよしなにリンク
 function isPureRenote(note: MiNote): note is MiNote & { renoteId: MiNote['id']; renote: MiNote } {
@@ -66,7 +65,6 @@ export class NoteEntityService implements OnModuleInit {
 	private reactionService: ReactionService;
 	private reactionsBufferingService: ReactionsBufferingService;
 	private idService: IdService;
-	private cacheService: CacheService;
 	private noteLoader = new DebounceLoader(this.findNoteOrFail);
 
 	constructor(
@@ -112,7 +110,6 @@ export class NoteEntityService implements OnModuleInit {
 		this.reactionService = this.moduleRef.get('ReactionService');
 		this.reactionsBufferingService = this.moduleRef.get('ReactionsBufferingService');
 		this.idService = this.moduleRef.get('IdService');
-		this.cacheService = this.moduleRef.get('CacheService');
 	}
 
 	@bindThis
@@ -388,7 +385,7 @@ export class NoteEntityService implements OnModuleInit {
 			: this.meta.enableReactionsBuffering
 				? await this.reactionsBufferingService.get(note.id)
 				: { deltas: {}, pairs: [] };
-		const reactions = this.reactionService.convertLegacyReactions(this.reactionsBufferingService.mergeReactions(await this.removeMutedUsersFromReactions(note, meId), bufferedReactions.deltas ?? {}));
+		const reactions = this.reactionService.convertLegacyReactions(this.reactionsBufferingService.mergeReactions(note.reactions, bufferedReactions.deltas ?? {}));
 
 		const reactionAndUserPairCache = note.reactionAndUserPairCache.concat(bufferedReactions.pairs.map(x => x.join('/')));
 
@@ -485,26 +482,6 @@ export class NoteEntityService implements OnModuleInit {
 		}
 
 		return packed;
-	}
-
-	@bindThis
-	private async removeMutedUsersFromReactions(note: MiNote, meId: MiUser['id'] | null) {
-		if (meId) {
-			const muteeIds = await this.cacheService.userMutingsCache.fetch(meId);
-			const reactions = { ...note.reactions };
-			for (const pair of note.reactionAndUserPairCache) {
-				const [userId, reaction] = pair.split('/');
-				if (muteeIds.has(userId) && reaction in reactions) {
-					reactions[reaction]--;
-					if (reactions[reaction] === 0) {
-						delete reactions[reaction];
-					}
-				}
-			}
-			return reactions;
-		} else {
-			return note.reactions;
-		}
 	}
 
 	@bindThis
