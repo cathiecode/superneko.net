@@ -19,7 +19,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		{{ title }}
 	</template>
 
-	<MkSpacer :marginMin="20" :marginMax="32">
+	<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 32px;">
 		<div v-if="Object.keys(form).filter(item => !form[item].hidden).length > 0" class="_gaps_m">
 			<template v-for="(v, k) in Object.fromEntries(Object.entries(form))">
 				<template v-if="typeof v.hidden == 'function' ? v.hidden(values) : v.hidden"></template>
@@ -41,11 +41,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</MkSwitch>
 				<MkSelect v-else-if="v.type === 'enum'" v-model="values[k]">
 					<template #label><span v-text="v.label || k"></span><span v-if="v.required === false"> ({{ i18n.ts.optional }})</span></template>
-					<option v-for="option in v.enum" :key="option.value" :value="option.value">{{ option.label }}</option>
+					<option v-for="option in v.enum" :key="getEnumKey(option)" :value="getEnumValue(option)">{{ getEnumLabel(option) }}</option>
 				</MkSelect>
 				<MkRadios v-else-if="v.type === 'radio'" v-model="values[k]">
 					<template #label><span v-text="v.label || k"></span><span v-if="v.required === false"> ({{ i18n.ts.optional }})</span></template>
-					<option v-for="option in v.options" :key="option.value" :value="option.value">{{ option.label }}</option>
+					<option v-for="option in v.options" :key="getRadioKey(option)" :value="option.value">{{ option.label }}</option>
 				</MkRadios>
 				<MkRange v-else-if="v.type === 'range'" v-model="values[k]" :min="v.min" :max="v.max" :step="v.step" :textConverter="v.textConverter">
 					<template #label><span v-text="v.label || k"></span><span v-if="v.required === false"> ({{ i18n.ts.optional }})</span></template>
@@ -62,16 +62,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 				/>
 			</template>
 		</div>
-		<div v-else class="_fullinfo">
-			<img :src="infoImageUrl" class="_ghost"/>
-			<div>{{ i18n.ts.nothing }}</div>
-		</div>
-	</MkSpacer>
+		<MkResult v-else type="empty"/>
+	</div>
 </MkModalWindow>
 </template>
 
 <script lang="ts" setup>
-import { reactive, shallowRef } from 'vue';
+import { reactive, useTemplateRef } from 'vue';
 import MkInput from './MkInput.vue';
 import MkTextarea from './MkTextarea.vue';
 import MkSwitch from './MkSwitch.vue';
@@ -80,10 +77,9 @@ import MkRange from './MkRange.vue';
 import MkButton from './MkButton.vue';
 import MkRadios from './MkRadios.vue';
 import XFile from './MkFormDialog.file.vue';
-import type { Form } from '@/scripts/form.js';
+import type { EnumItem, Form, RadioFormItem } from '@/utility/form.js';
 import MkModalWindow from '@/components/MkModalWindow.vue';
 import { i18n } from '@/i18n.js';
-import { infoImageUrl } from '@/instance.js';
 
 const props = defineProps<{
 	title: string;
@@ -99,11 +95,15 @@ const emit = defineEmits<{
 	(ev: 'closed'): void;
 }>();
 
-const dialog = shallowRef<InstanceType<typeof MkModalWindow>>();
+const dialog = useTemplateRef('dialog');
 const values = reactive({});
 
 for (const item in props.form) {
-	values[item] = props.form[item].default ?? null;
+	if ('default' in props.form[item]) {
+		values[item] = props.form[item].default ?? null;
+	} else {
+		values[item] = null;
+	}
 }
 
 function ok() {
@@ -118,5 +118,21 @@ function cancel() {
 		canceled: true,
 	});
 	dialog.value?.close();
+}
+
+function getEnumLabel(e: EnumItem) {
+	return typeof e === 'string' ? e : e.label;
+}
+
+function getEnumValue(e: EnumItem) {
+	return typeof e === 'string' ? e : e.value;
+}
+
+function getEnumKey(e: EnumItem) {
+	return typeof e === 'string' ? e : typeof e.value === 'string' ? e.value : JSON.stringify(e.value);
+}
+
+function getRadioKey(e: RadioFormItem['options'][number]) {
+	return typeof e.value === 'string' ? e.value : JSON.stringify(e.value);
 }
 </script>
