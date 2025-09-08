@@ -6,18 +6,23 @@
 // https://vitejs.dev/config/build-options.html#build-modulepreload
 import 'vite/modulepreload-polyfill';
 
-import '@tabler/icons-webfont/dist/tabler-icons.scss';
+if (import.meta.env.DEV) {
+	await import('@tabler/icons-webfont/dist/tabler-icons.scss');
+} else {
+	await import('icons-subsetter/built/tabler-icons-frontendEmbed.css');
+}
 
 import '@/style.scss';
 import { createApp, defineAsyncComponent } from 'vue';
 import defaultLightTheme from '@@/themes/l-light.json5';
 import defaultDarkTheme from '@@/themes/d-dark.json5';
 import { MediaProxy } from '@@/js/media-proxy.js';
+import { storeBootloaderErrors } from '@@/js/store-boot-errors';
 import { applyTheme, assertIsTheme } from '@/theme.js';
 import { fetchCustomEmojis } from '@/custom-emojis.js';
 import { DI } from '@/di.js';
 import { serverMetadata } from '@/server-metadata.js';
-import { url } from '@@/js/config.js';
+import { url, version, lang } from '@@/js/config.js';
 import { parseEmbedParams } from '@@/js/embed-page.js';
 import { postMessageToParentWindow, setIframeId } from '@/post-message.js';
 import { serverContext } from '@/server-context.js';
@@ -69,6 +74,10 @@ if (embedParams.colorMode === 'dark') {
 		}
 	});
 }
+//#endregion
+
+//#region Detect language & fetch translations
+storeBootloaderErrors({ ...i18n.ts._bootErrors, reload: i18n.ts.reload });
 //#endregion
 
 // サイズの制限
