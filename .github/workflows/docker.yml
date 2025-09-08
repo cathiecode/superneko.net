@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
 
 env:
+  REGISTRY: ghcr.io
   REGISTRY_IMAGE: ghcr.io/cathiecode/superneko.net
   TAGS: |
     type=edge
