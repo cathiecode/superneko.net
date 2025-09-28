@@ -106,7 +106,7 @@ const emit = defineEmits<{
 
 const initInvitationCode = (() => {
     try {
-        const params = new URLSearchParams(document.location.search);
+        const params = new URLSearchParams(window.document.location.search);
         return params.get('invite_code') ?? '';
     } catch {
         return '';
@@ -115,12 +115,12 @@ const initInvitationCode = (() => {
 
 const inviterProfileUrl = (() => {
     try {
-        const params = new URLSearchParams(document.location.search);
+        const params = new URLSearchParams(window.document.location.search);
         const username = params.get('inviter_username');
 
         if (!username) return "/";
 
-        const profileUrl = new URL(document.location.origin);
+        const profileUrl = new URL(window.document.location.origin);
 
         profileUrl.pathname = `/@${username}`;
 
