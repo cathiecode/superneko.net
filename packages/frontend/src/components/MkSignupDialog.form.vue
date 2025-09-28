@@ -104,6 +104,32 @@ const emit = defineEmits<{
 	(ev: 'signupEmailPending'): void;
 }>();
 
+const initInvitationCode = (() => {
+    try {
+        const params = new URLSearchParams(document.location.search);
+        return params.get('invite_code') ?? '';
+    } catch {
+        return '';
+    }
+})();
+
+const inviterProfileUrl = (() => {
+    try {
+        const params = new URLSearchParams(document.location.search);
+        const username = params.get('inviter_username');
+
+        if (!username) return "/";
+
+        const profileUrl = new URL(document.location.origin);
+
+        profileUrl.pathname = `/@${username}`;
+
+        return profileUrl.toString();
+    } catch {
+        return "/";
+    }
+})();
+
 const host = toUnicode(config.host);
 
 const hcaptcha = ref<Captcha | undefined>();
@@ -115,7 +141,7 @@ const testcaptcha = ref<Captcha | undefined>();
 const username = ref<string>('');
 const password = ref<string>('');
 const retypedPassword = ref<string>('');
-const invitationCode = ref<string>('');
+const invitationCode = ref<string>(initInvitationCode);
 const email = ref('');
 const usernameState = ref<null | 'wait' | 'ok' | 'unavailable' | 'error' | 'invalid-format' | 'min-range' | 'max-range'>(null);
 const emailState = ref<null | 'wait' | 'ok' | 'unavailable:used' | 'unavailable:format' | 'unavailable:disposable' | 'unavailable:banned' | 'unavailable:mx' | 'unavailable:smtp' | 'unavailable' | 'error'>(null);
@@ -294,7 +320,7 @@ async function onSubmit(): Promise<void> {
 			emit('signup', resJson);
 
 			if (props.autoSet) {
-				await login(resJson.token);
+				await login(resJson.token, inviterProfileUrl);
 			}
 		}
 	} else {
