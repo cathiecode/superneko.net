@@ -22,6 +22,7 @@ import type { MiSystemWebhook } from '@/models/SystemWebhook.js';
 import type { MiMeta } from '@/models/Meta.js';
 import { MiAvatarDecoration, MiChatMessage, MiChatRoom, MiReversiGame, MiRole, MiRoleAssignment } from '@/models/_.js';
 import type { Packed } from '@/misc/json-schema.js';
+import type { PackedLiveStream, PackedLiveStreamChatMessage } from '@/core/LiveStreamingService.js';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
 import { bindThis } from '@/decorators.js';
@@ -46,6 +47,7 @@ export interface BroadcastTypes {
 }
 
 export interface MainEventTypes {
+	liveStreamChanged: PackedLiveStream;
 	notification: Packed<'Notification'>;
 	mention: Packed<'Note'>;
 	reply: Packed<'Note'>;
@@ -90,6 +92,14 @@ export interface MainEventTypes {
 	announcementCreated: {
 		announcement: Packed<'Announcement'>;
 	};
+}
+
+export interface LiveStreamEventTypes {
+	streamChanged: PackedLiveStream;
+	participantJoined: { anonymous: boolean; user?: Packed<'UserLite'> };
+	chatMessage: PackedLiveStreamChatMessage;
+	chatMessageDeleted: { id: string };
+	ended: null;
 }
 
 export interface DriveEventTypes {
@@ -315,6 +325,10 @@ export type GlobalEvents = {
 		name: `chatRoomStream:${MiChatRoom['id']}`;
 		payload: EventTypesToEventPayload<ChatEventTypes>;
 	};
+	liveStream: {
+		name: `liveStream:${string}`;
+		payload: EventTypesToEventPayload<LiveStreamEventTypes>;
+	};
 	reversi: {
 		name: `reversiStream:${MiUser['id']}`;
 		payload: EventTypesToEventPayload<ReversiEventTypes>;
@@ -424,6 +438,11 @@ export class GlobalEventService {
 	@bindThis
 	public publishChatRoomStream<K extends keyof ChatEventTypes>(toRoomId: MiChatRoom['id'], type: K, value?: ChatEventTypes[K]): void {
 		this.publish(`chatRoomStream:${toRoomId}`, type, typeof value === 'undefined' ? null : value);
+	}
+
+	@bindThis
+	public publishLiveStream<K extends keyof LiveStreamEventTypes>(streamId: string, type: K, value?: LiveStreamEventTypes[K]): void {
+		this.publish(`liveStream:${streamId}`, type, typeof value === 'undefined' ? null : value);
 	}
 
 	@bindThis

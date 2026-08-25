@@ -12,6 +12,7 @@ import fastifyStatic from '@fastify/static';
 import fastifyRawBody from 'fastify-raw-body';
 import { IsNull } from 'typeorm';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
+import { LiveStreamingService } from '@/core/LiveStreamingService.js';
 import type { Config } from '@/config.js';
 import type { EmojisRepository, MiMeta, UserProfilesRepository, UsersRepository } from '@/models/_.js';
 import { DI } from '@/di-symbols.js';
@@ -70,6 +71,7 @@ export class ServerService implements OnApplicationShutdown {
 		private globalEventService: GlobalEventService,
 		private loggerService: LoggerService,
 		private oauth2ProviderService: OAuth2ProviderService,
+		private liveStreamingService: LiveStreamingService,
 	) {
 		this.logger = this.loggerService.getLogger('server', 'gray');
 	}
@@ -161,6 +163,19 @@ export class ServerService implements OnApplicationShutdown {
 		fastify.register(this.oauth2ProviderService.createServer, { prefix: '/oauth' });
 		fastify.register(this.oauth2ProviderService.createTokenServer, { prefix: '/oauth/token' });
 		fastify.register(this.healthServerService.createServer, { prefix: '/healthz' });
+
+		fastify.post<{ Querystring: { secret?: string }; Body: { action?: string; path?: string; token?: string } }>('/live/mediamtx/auth', async (request, reply) => {
+			if (this.config.liveStreaming == null || request.query.secret !== this.config.liveStreaming.callbackSecret) return await reply.code(404).send();
+			const allowed = await this.liveStreamingService.authenticateMedia(request.body.action ?? '', request.body.path ?? '', request.body.token ?? '');
+			return await reply.code(allowed ? 200 : 403).send();
+		});
+
+		fastify.post<{ Querystring: { secret?: string; event?: string; path?: string } }>('/live/mediamtx/event', async (request, reply) => {
+			if (this.config.liveStreaming == null || request.query.secret !== this.config.liveStreaming.callbackSecret) return await reply.code(404).send();
+			if (request.query.event === 'online') await this.liveStreamingService.mediaOnline(request.query.path ?? '');
+			if (request.query.event === 'offline') await this.liveStreamingService.mediaOffline(request.query.path ?? '');
+			return await reply.code(204).send();
+		});
 
 		fastify.get<{ Params: { path: string }; Querystring: { static?: any; badge?: any; }; }>('/emoji/:path(.*)', async (request, reply) => {
 			const path = request.params.path;

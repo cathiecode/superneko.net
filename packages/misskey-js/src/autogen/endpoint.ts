@@ -73,6 +73,7 @@ import type {
 	AdminInviteCreateResponse,
 	AdminInviteListRequest,
 	AdminInviteListResponse,
+	AdminLiveStreamsEndRequest,
 	AdminMetaResponse,
 	AdminPromoCreateRequest,
 	AdminQueueClearRequest,
@@ -483,6 +484,19 @@ import type {
 	InviteLimitResponse,
 	InviteListRequest,
 	InviteListResponse,
+	LiveStreamChatDeleteRequest,
+	LiveStreamChatMessagesRequest,
+	LiveStreamChatMessagesResponse,
+	LiveStreamChatSendRequest,
+	LiveStreamChatSendResponse,
+	LiveStreamCreateRequest,
+	LiveStreamCreateResponse,
+	LiveStreamFinishRequest,
+	LiveStreamFollowingResponse,
+	LiveStreamJoinRequest,
+	LiveStreamJoinResponse,
+	LiveStreamShowRequest,
+	LiveStreamShowResponse,
 	MetaRequest,
 	MetaResponse,
 	MiauthGenTokenRequest,
@@ -720,6 +734,7 @@ export type Endpoints = {
 	'admin/get-user-ips': { req: AdminGetUserIpsRequest; res: AdminGetUserIpsResponse };
 	'admin/invite/create': { req: AdminInviteCreateRequest; res: AdminInviteCreateResponse };
 	'admin/invite/list': { req: AdminInviteListRequest; res: AdminInviteListResponse };
+	'admin/live-streams/end': { req: AdminLiveStreamsEndRequest; res: EmptyResponse };
 	'admin/meta': { req: EmptyRequest; res: AdminMetaResponse };
 	'admin/promo/create': { req: AdminPromoCreateRequest; res: EmptyResponse };
 	'admin/queue/clear': { req: AdminQueueClearRequest; res: EmptyResponse };
@@ -989,6 +1004,14 @@ export type Endpoints = {
 	'invite/delete': { req: InviteDeleteRequest; res: EmptyResponse };
 	'invite/limit': { req: EmptyRequest; res: InviteLimitResponse };
 	'invite/list': { req: InviteListRequest; res: InviteListResponse };
+	'live-stream/chat-delete': { req: LiveStreamChatDeleteRequest; res: EmptyResponse };
+	'live-stream/chat-messages': { req: LiveStreamChatMessagesRequest; res: LiveStreamChatMessagesResponse };
+	'live-stream/chat-send': { req: LiveStreamChatSendRequest; res: LiveStreamChatSendResponse };
+	'live-stream/create': { req: LiveStreamCreateRequest; res: LiveStreamCreateResponse };
+	'live-stream/finish': { req: LiveStreamFinishRequest; res: EmptyResponse };
+	'live-stream/following': { req: EmptyRequest; res: LiveStreamFollowingResponse };
+	'live-stream/join': { req: LiveStreamJoinRequest; res: LiveStreamJoinResponse };
+	'live-stream/show': { req: LiveStreamShowRequest; res: LiveStreamShowResponse };
 	'meta': { req: MetaRequest; res: MetaResponse };
 	'miauth/gen-token': { req: MiauthGenTokenRequest; res: MiauthGenTokenResponse };
 	'mute/create': { req: MuteCreateRequest; res: EmptyResponse };
