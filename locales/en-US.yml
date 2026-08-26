@@ -2849,6 +2849,7 @@ _notification:
     followRequestAccepted: "Accepted follow requests"
     roleAssigned: "Role given"
     chatRoomInvitationReceived: "Invited to chat room"
+    liveStreamStarted: "A followed user starts a Howl"
     achievementEarned: "Achievement unlocked"
     exportCompleted: "The export has been completed"
     login: "Sign In"

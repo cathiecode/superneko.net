@@ -11,6 +11,7 @@ import type { Config } from '@/config.js';
 import { IdService } from '@/core/IdService.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
+import { NotificationService } from '@/core/NotificationService.js';
 import { MiFollowing, MiLiveStream, MiLiveStreamChatMessage, MiUser } from '@/models/_.js';
 import { bindThis } from '@/decorators.js';
 import type { Packed } from '@/misc/json-schema.js';
@@ -56,6 +57,7 @@ export class LiveStreamingService {
 		private idService: IdService,
 		private globalEventService: GlobalEventService,
 		private userEntityService: UserEntityService,
+		private notificationService: NotificationService,
 	) {}
 
 	private get liveConfig() {
@@ -117,6 +119,7 @@ export class LiveStreamingService {
 			throw error;
 		}
 		await this.notifyFollowers(stream);
+		await this.notifyFollowersOfStart(stream);
 		this.scheduleWaitingExpiry(stream);
 		return { stream, publishToken, guestToken };
 	}
@@ -344,5 +347,15 @@ export class LiveStreamingService {
 		const followers = await this.db.getRepository(MiFollowing).findBy({ followeeId: stream.userId, followerHost: IsNull() });
 		const body = packed ?? await this.pack(stream, null);
 		for (const userId of new Set([stream.userId, ...followers.map(x => x.followerId)])) this.globalEventService.publishMainStream(userId, 'liveStreamChanged', body);
+	}
+
+	private async notifyFollowersOfStart(stream: MiLiveStream): Promise<void> {
+		const followers = await this.db.getRepository(MiFollowing).findBy({ followeeId: stream.userId, followerHost: IsNull() });
+		for (const followerId of new Set(followers.map(x => x.followerId))) {
+			this.notificationService.createNotification(followerId, 'liveStreamStarted', {
+				streamId: stream.id,
+				streamTitle: stream.title,
+			}, stream.userId);
+		}
 	}
 }

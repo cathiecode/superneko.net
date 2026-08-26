@@ -17,6 +17,7 @@ const en = {
 	publicDescription: 'Anyone with the viewing URL can watch. Superneko users can read and post chat messages. RTSP viewing is enabled.', noFollowingStreams: 'No followed users are Howling.',
 	followersDescription: 'Superneko users who follow you can watch the stream.',
 	loadFailed: 'This Howl is unavailable or has ended.', playerLabel: 'Howl video player',
+	notificationType: 'A followed user starts a Howl', notificationStarted: (name: string, title: string) => `${name} started ${title}`,
 } as const;
 
 const ja = {
@@ -31,5 +32,6 @@ const ja = {
 	followersDescription: 'あなたをフォローしているすーぱーねこのユーザーが配信を視聴できます。',
 	publicDescription: '視聴用URLを知っている人が視聴できます。すーぱーねこのユーザーはチャットを閲覧・投稿できます。RTSPでの視聴も有効になります。', noFollowingStreams: 'フォロー中のHowlはありません。',
 	loadFailed: 'このHowlは利用できないか、終了しました。', playerLabel: 'Howl動画プレイヤー',
+	notificationType: 'フォロー中のユーザーがHowlを開始', notificationStarted: (name: string, title: string) => `${name}が${title}を開始しました`,
 };
 export const howlText = lang.startsWith('ja') ? ja : en;

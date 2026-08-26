@@ -2922,6 +2922,7 @@ _notification:
     followRequestAccepted: "フォローが受理された"
     roleAssigned: "ロールが付与された"
     chatRoomInvitationReceived: "ダイレクトメッセージのグループへ招待された"
+    liveStreamStarted: "フォロー中のユーザーがHowlを開始"
     achievementEarned: "実績の獲得"
     exportCompleted: "エクスポートが完了した"
     login: "ログイン"

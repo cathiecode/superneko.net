@@ -32,6 +32,7 @@ export const notificationTypes = [
 	'app',
 	'roleAssigned',
 	'chatRoomInvitationReceived',
+	'liveStreamStarted',
 	'achievementEarned',
 	'exportCompleted',
 	'test',
