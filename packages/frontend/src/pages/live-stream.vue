@@ -265,8 +265,8 @@ definePage(() => ({ title: stream.value?.title ?? howlText.title, icon: 'ti ti-b
 .avatar { width: 48px; height: 48px; }
 .status { color: var(--MI_THEME-accent); white-space: nowrap; }
 .actions, .chatActions { display: flex; align-items: center; justify-content: flex-end; gap: var(--MI-marginHalf); flex-wrap: wrap; }
-.player { position: relative; overflow: hidden; background: var(--MI_THEME-bg); }
-.player video { display: block; width: 100%; max-height: 70vh; background: var(--MI_THEME-bg); }
+.player { position: relative; overflow: hidden; aspect-ratio: 16 / 9; background: var(--MI_THEME-bg); }
+.player video { display: block; width: 100%; height: 100%; object-fit: contain; background: var(--MI_THEME-bg); }
 .playerControls { position: absolute; z-index: 2; right: var(--MI-marginHalf); bottom: var(--MI-marginHalf); display: flex; gap: var(--MI-marginHalf); }
 .obsSettings { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--MI-marginHalf); margin: var(--MI-marginHalf) 0 0; }
 .obsSettings dt { font-weight: bold; }
