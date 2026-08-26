@@ -4,47 +4,34 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<section v-if="$i" :class="$style.root" class="_panel">
+<section v-if="$i && streams.length" :class="$style.root" class="_panel">
 	<div :class="$style.header">
-		<strong><i class="ti ti-broadcast"></i> {{ i18n.ts._liveStreaming.title }}</strong>
-		<MkButton small primary @click="createStream"><i class="ti ti-plus"></i> {{ i18n.ts._liveStreaming.create }}</MkButton>
+		<strong><i class="ti ti-broadcast"></i> {{ howlText.title }}</strong>
 	</div>
 	<div v-if="streams.length" :class="$style.streams">
 		<button v-for="stream in streams" :key="stream.id" class="_button" :class="$style.stream" @click="os.pageWindow(`/live/${stream.id}`)">
 			<MkAvatar :user="stream.user" :class="$style.avatar"/>
 			<span :class="$style.text"><b>{{ stream.title }}</b><small>{{ stream.user.name ?? stream.user.username }}</small></span>
-			<span :class="$style.live"><i class="ti ti-point-filled"></i> {{ stream.status === 'waiting' ? i18n.ts._liveStreaming.waiting : i18n.ts._liveStreaming.live }}</span>
+			<span :class="$style.live"><i class="ti ti-point-filled"></i> {{ stream.status === 'waiting' ? howlText.waiting : howlText.live }}</span>
 		</button>
 	</div>
-	<div v-else :class="$style.empty">{{ i18n.ts._liveStreaming.noFollowingStreams }}</div>
 </section>
 </template>
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import type * as Misskey from 'misskey-js';
-import MkButton from '@/components/MkButton.vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { useStream } from '@/stream.js';
-import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
 import * as os from '@/os.js';
+import { howlText } from '@/pages/_components/howl-text.js';
 
 const streams = ref<Misskey.LiveStream[]>([]);
 const connection = $i ? useStream().useChannel('main') : null;
 
 async function reload() {
 	streams.value = await misskeyApi('live-stream/following', {});
-}
-
-async function createStream() {
-	const { canceled, result } = await os.form(i18n.ts._liveStreaming.create, {
-		title: { type: 'string', label: i18n.ts._liveStreaming.streamTitle },
-	});
-	if (canceled || !result.title.trim()) return;
-	const created = await os.apiWithDialog('live-stream/create', { title: result.title.trim() });
-	sessionStorage.setItem(`live-publish-url:${created.stream.id}`, created.publishUrl);
-	os.pageWindow(`/live/${created.stream.id}`);
 }
 
 onMounted(() => {

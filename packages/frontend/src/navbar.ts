@@ -14,6 +14,7 @@ import { lookup } from '@/utility/lookup.js';
 import * as os from '@/os.js';
 import { i18n } from '@/i18n.js';
 import { unisonReload } from '@/utility/unison-reload.js';
+import { howlText } from '@/pages/_components/howl-text.js';
 
 export const navbarItemDef = reactive<{
 	[key: string]: {
@@ -82,6 +83,12 @@ export const navbarItemDef = reactive<{
 		icon: 'ti ti-qrcode',
 		show: computed(() => $i != null),
 		to: '/qr',
+	},
+	howl: {
+		title: howlText.title,
+		icon: 'ti ti-broadcast',
+		show: computed(() => $i != null),
+		to: '/howl',
 	},
 	lists: {
 		title: i18n.ts.lists,

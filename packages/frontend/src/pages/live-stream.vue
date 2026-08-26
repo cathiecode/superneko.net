@@ -14,44 +14,51 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</section>
 
 			<section v-if="isOwner && publishUrl" class="_panel _gaps" :class="$style.control">
-				<h3>{{ i18n.ts._liveStreaming.broadcastControl }}</h3>
+				<h3>{{ howlText.broadcastControl }}</h3>
 				<MkInput :modelValue="publishUrl" readonly>
-					<template #label>{{ i18n.ts._liveStreaming.rtmpEndpoint }}</template>
+					<template #label>{{ howlText.rtmpEndpoint }}</template>
 				</MkInput>
+				<MkInput v-if="guestUrl" :modelValue="guestUrl" readonly><template #label>{{ howlText.guestUrl }}</template></MkInput>
+				<MkInput v-if="rtspUrl" :modelValue="rtspUrl" readonly><template #label>{{ howlText.rtspEndpoint }}</template></MkInput>
 				<div :class="$style.actions">
 					<MkButton @click="copyPublishUrl"><i class="ti ti-copy"></i> {{ i18n.ts.copy }}</MkButton>
-					<MkButton danger @click="finish"><i class="ti ti-player-stop"></i> {{ i18n.ts._liveStreaming.end }}</MkButton>
+					<MkButton danger @click="finish"><i class="ti ti-player-stop"></i> {{ howlText.end }}</MkButton>
 				</div>
 			</section>
 
 			<section v-if="!joined" class="_panel _gaps" :class="$style.join">
-				<h3>{{ i18n.ts._liveStreaming.chooseIdentity }}</h3>
-				<p>{{ i18n.ts._liveStreaming.chooseIdentityDescription }}</p>
+				<h3>{{ howlText.chooseIdentity }}</h3>
+				<p>{{ howlText.chooseIdentityDescription }}</p>
+				<MkInput v-if="!$i" v-model="guestName"><template #label>{{ howlText.displayName }}</template></MkInput>
 				<div :class="$style.actions">
-					<MkButton primary @click="join(true)">{{ i18n.ts._liveStreaming.joinAnonymously }}</MkButton>
-					<MkButton @click="join(false)">{{ i18n.ts._liveStreaming.joinWithAccount }}</MkButton>
+					<template v-if="$i"><MkButton primary @click="join(true)">{{ howlText.joinAnonymously }}</MkButton><MkButton @click="join(false)">{{ howlText.joinWithAccount }}</MkButton></template>
+					<MkButton v-else primary :disabled="!guestName.trim() || !guestToken" @click="joinGuest">{{ howlText.listen }}</MkButton>
 				</div>
 			</section>
 
 			<template v-else>
 				<section class="_panel" :class="$style.player">
 					<video ref="videoEl" controls autoplay playsinline></video>
-					<div v-if="stream.status === 'disconnected'" :class="$style.interruption">{{ i18n.ts._liveStreaming.temporarilyDisconnected }}</div>
+					<div v-if="stream.status === 'disconnected'" :class="$style.interruption">{{ howlText.temporarilyDisconnected }}</div>
+				</section>
+				<section v-if="$i" class="_panel _gaps" :class="$style.chat">
+					<h3>{{ howlText.listeners }}</h3>
+					<div :class="$style.viewerList"><span v-for="user in viewers.users" :key="user.id"><MkAvatar :user="user" :class="$style.viewerAvatar"/>{{ user.name ?? user.username }}</span><span v-for="guest in viewers.guests" :key="guest.name">{{ guest.name }} ({{ howlText.externalUser }})</span><span v-if="viewers.anonymousCount">{{ howlText.anonymousListeners(viewers.anonymousCount) }}</span></div>
 				</section>
 
-				<section class="_panel _gaps" :class="$style.chat">
-					<h3>{{ i18n.ts._liveStreaming.chat }}</h3>
+				<section v-if="$i" class="_panel _gaps" :class="$style.chat">
+					<h3>{{ howlText.chat }}</h3>
 					<div :class="$style.messages">
 						<div v-for="message in messages" :key="message.id" :class="$style.message">
 							<MkAvatar v-if="message.user" :user="message.user" :class="$style.messageAvatar"/>
-							<div :class="$style.messageBody"><b>{{ message.user ? (message.user.name ?? message.user.username) : i18n.ts._liveStreaming.anonymous }}</b><p>{{ message.text }}</p></div>
+							<div :class="$style.messageBody"><b>{{ message.user ? (message.user.name ?? message.user.username) : howlText.anonymous }}</b><p>{{ message.text }}</p></div>
 							<button v-if="isOwner" class="_button" :aria-label="i18n.ts.delete" @click="deleteMessage(message.id)"><i class="ti ti-trash"></i></button>
 						</div>
 					</div>
-					<MkTextarea v-model="chatText" :placeholder="i18n.ts._liveStreaming.chatPlaceholder" @enter="sendMessage">
-						<template #label>{{ i18n.ts._liveStreaming.chat }}</template>
+					<MkTextarea v-model="chatText" :placeholder="howlText.chatPlaceholder" @enter="sendMessage">
+						<template #label>{{ howlText.chat }}</template>
 					</MkTextarea>
-					<div :class="$style.chatActions"><MkSwitch v-model="chatAnonymously">{{ i18n.ts._liveStreaming.chatAnonymously }}</MkSwitch><MkButton primary :disabled="!chatText.trim()" @click="sendMessage">{{ i18n.ts.send }}</MkButton></div>
+					<div :class="$style.chatActions"><MkSwitch v-model="chatAnonymously">{{ howlText.chatAnonymously }}</MkSwitch><MkButton primary :disabled="!chatText.trim()" @click="sendMessage">{{ i18n.ts.send }}</MkButton></div>
 				</section>
 			</template>
 		</template>
@@ -70,16 +77,21 @@ import MkSwitch from '@/components/MkSwitch.vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
 import { useStream } from '@/stream.js';
-import { ensureSignin } from '@/i.js';
+import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import * as os from '@/os.js';
+import { howlText } from '@/pages/_components/howl-text.js';
 
 const props = defineProps<{ streamId: string }>();
-const $i = ensureSignin();
 const loading = ref(true);
 const stream = ref<Misskey.LiveStream | null>(null);
 const publishUrl = ref<string | null>(null);
+const guestUrl = ref<string | null>(null);
+const rtspUrl = ref<string | null>(null);
+const guestToken = new URLSearchParams(window.location.search).get('guest');
+const guestName = ref('');
+const viewers = ref<{ anonymousCount: number; guests: { name: string; external: true }[]; users: Misskey.LiveStream['user'][] }>({ anonymousCount: 0, guests: [], users: [] });
 const joined = ref(false);
 const anonymous = ref(true);
 const chatAnonymously = ref(false);
@@ -90,15 +102,16 @@ let hls: Hls | null = null;
 let playbackRefreshTimer: number | null = null;
 // The page component is recreated when the route parameter changes.
 // eslint-disable-next-line vue/no-setup-props-reactivity-loss
-const connection = useStream().useChannel('liveStream', { streamId: props.streamId });
-const isOwner = computed(() => stream.value?.user.id === $i.id);
-const statusText = computed(() => stream.value?.status === 'waiting' ? i18n.ts._liveStreaming.waiting : stream.value?.status === 'disconnected' ? i18n.ts._liveStreaming.temporarilyDisconnected : i18n.ts._liveStreaming.live);
+const connection = $i ? useStream().useChannel('liveStream', { streamId: props.streamId }) : null;
+const isOwner = computed(() => stream.value?.user.id === $i?.id);
+const statusText = computed(() => stream.value?.status === 'waiting' ? howlText.waiting : stream.value?.status === 'disconnected' ? howlText.temporarilyDisconnected : howlText.live);
 
 async function load() {
 	try { stream.value = await misskeyApi('live-stream/show', { streamId: props.streamId }); } finally { loading.value = false; }
 }
 
 async function join(asAnonymous: boolean) {
+	if (!$i) return;
 	anonymous.value = asAnonymous; chatAnonymously.value = asAnonymous;
 	const playback = await misskeyApi('live-stream/join', { streamId: props.streamId, anonymous: asAnonymous });
 	joined.value = true;
@@ -107,6 +120,14 @@ async function join(asAnonymous: boolean) {
 	messages.value = await misskeyApi('live-stream/chat-messages', { streamId: props.streamId });
 	if (playbackRefreshTimer) window.clearInterval(playbackRefreshTimer);
 	playbackRefreshTimer = window.setInterval(() => void refreshPlayback(), 4 * 60 * 1000);
+}
+
+async function joinGuest() {
+	if (!guestToken || !guestName.value.trim()) return;
+	const playback = await misskeyApi('live-stream/guest-join', { streamId: props.streamId, guestToken, name: guestName.value.trim() });
+	joined.value = true;
+	await new Promise(resolve => window.setTimeout(resolve));
+	attachPlayer(playback.playbackUrl, playback.token);
 }
 
 async function refreshPlayback() {
@@ -133,24 +154,27 @@ async function sendMessage() {
 
 async function deleteMessage(messageId: string) { await misskeyApi('live-stream/chat-delete', { streamId: props.streamId, messageId }); }
 
-async function finish() { const { canceled } = await os.confirm({ type: 'warning', text: i18n.ts._liveStreaming.endConfirm }); if (!canceled) await misskeyApi('live-stream/finish', { streamId: props.streamId }); }
+async function finish() { const { canceled } = await os.confirm({ type: 'warning', text: howlText.endConfirm }); if (!canceled) await misskeyApi('live-stream/finish', { streamId: props.streamId }); }
 
 function copyPublishUrl() { if (publishUrl.value) copyToClipboard(publishUrl.value); }
 
-connection.on('streamChanged', value => { stream.value = value; });
-connection.on('chatMessage', message => { messages.value.push(message); });
-connection.on('chatMessageDeleted', ({ id }) => { messages.value = messages.value.filter(message => message.id !== id); });
-connection.on('ended', () => { hls?.destroy(); joined.value = false; os.alert({ type: 'info', text: i18n.ts._liveStreaming.ended }); });
+connection?.on('streamChanged', value => { stream.value = value; });
+connection?.on('viewersChanged', value => { viewers.value = value; });
+connection?.on('chatMessage', message => { messages.value.push(message); });
+connection?.on('chatMessageDeleted', ({ id }) => { messages.value = messages.value.filter(message => message.id !== id); });
+connection?.on('ended', () => { hls?.destroy(); joined.value = false; os.alert({ type: 'info', text: howlText.ended }); });
 
 onMounted(async () => {
 	await load();
 	const stored = sessionStorage.getItem(`live-publish-url:${props.streamId}`);
 	if (stored) publishUrl.value = stored;
+	guestUrl.value = sessionStorage.getItem(`live-guest-url:${props.streamId}`);
+	rtspUrl.value = sessionStorage.getItem(`live-rtsp-url:${props.streamId}`);
 });
-onBeforeUnmount(() => { hls?.destroy(); connection.dispose(); if (playbackRefreshTimer) window.clearInterval(playbackRefreshTimer); });
+onBeforeUnmount(() => { hls?.destroy(); connection?.dispose(); if (playbackRefreshTimer) window.clearInterval(playbackRefreshTimer); });
 
-const headerActions = computed(() => $i.isModerator && !isOwner.value ? [{ icon: 'ti ti-player-stop', text: i18n.ts._liveStreaming.forceEnd, handler: async () => { await misskeyApi('admin/live-streams/end', { streamId: props.streamId }); } }] : []);
-definePage(() => ({ title: stream.value?.title ?? i18n.ts._liveStreaming.title, icon: 'ti ti-broadcast' }));
+const headerActions = computed(() => $i?.isModerator && !isOwner.value ? [{ icon: 'ti ti-player-stop', text: howlText.forceEnd, handler: async () => { await misskeyApi('admin/live-streams/end', { streamId: props.streamId }); } }] : []);
+definePage(() => ({ title: stream.value?.title ?? howlText.title, icon: 'ti ti-broadcast' }));
 </script>
 
 <style lang="scss" module>
@@ -167,6 +191,9 @@ definePage(() => ({ title: stream.value?.title ?? i18n.ts._liveStreaming.title, 
 .messages { max-height: 360px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
 .message { display: flex; align-items: flex-start; gap: var(--MI-marginHalf); }
 .messageAvatar { width: 32px; height: 32px; }
+.viewerList { display: flex; flex-wrap: wrap; gap: var(--MI-marginHalf); align-items: center; }
+.viewerList span { display: inline-flex; align-items: center; gap: 6px; }
+.viewerAvatar { width: 24px; height: 24px; }
 .messageBody { flex: 1; min-width: 0; }
 .messageBody p { margin: 2px 0 0; overflow-wrap: anywhere; }
 </style>

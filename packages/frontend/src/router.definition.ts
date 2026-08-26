@@ -59,6 +59,9 @@ export const ROUTE_DEF = [{
 }, {
 	path: '/live/:streamId',
 	component: page(() => import('@/pages/live-stream.vue')),
+}, {
+	path: '/howl',
+	component: page(() => import('@/pages/howl.vue')),
 	loginRequired: true,
 }, {
 	path: '/chat/user/:userId',
