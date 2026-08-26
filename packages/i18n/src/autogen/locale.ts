@@ -11058,6 +11058,10 @@ export interface Locale extends ILocale {
              */
             "chatRoomInvitationReceived": string;
             /**
+             * フォロー中のユーザーがHowlを開始
+             */
+            "liveStreamStarted": string;
+            /**
              * 実績の獲得
              */
             "achievementEarned": string;
