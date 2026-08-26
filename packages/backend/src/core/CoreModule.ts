@@ -32,6 +32,7 @@ import { EmailService } from './EmailService.js';
 import { FederatedInstanceService } from './FederatedInstanceService.js';
 import { FetchInstanceMetadataService } from './FetchInstanceMetadataService.js';
 import { GlobalEventService } from './GlobalEventService.js';
+import { LiveStreamingService } from './LiveStreamingService.js';
 import { HashtagService } from './HashtagService.js';
 import { HttpRequestService } from './HttpRequestService.js';
 import { IdService } from './IdService.js';
@@ -331,6 +332,7 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		FederatedInstanceService,
 		FetchInstanceMetadataService,
 		GlobalEventService,
+		LiveStreamingService,
 		HashtagService,
 		HttpRequestService,
 		IdService,
@@ -633,6 +635,7 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		FederatedInstanceService,
 		FetchInstanceMetadataService,
 		GlobalEventService,
+		LiveStreamingService,
 		HashtagService,
 		HttpRequestService,
 		IdService,

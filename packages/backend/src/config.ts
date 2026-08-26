@@ -109,6 +109,17 @@ type Source = {
 	inboxJobMaxAttempts?: number;
 
 	mediaProxy?: string;
+	liveStreaming?: {
+		publicUrl: string;
+		rtmpUrl: string;
+		internalUrl?: string;
+		apiUrl?: string;
+		callbackSecret: string;
+		tokenSecret: string;
+		disconnectGracePeriod?: number;
+		waitingTimeout?: number;
+		rtspUrl?: string;
+	};
 	videoThumbnailGenerator?: string;
 
 	perChannelMaxNoteCacheCount?: number;
@@ -211,6 +222,17 @@ export type Config = {
 	mediaProxy: string;
 	externalMediaProxyEnabled: boolean;
 	videoThumbnailGenerator: string | null;
+	liveStreaming: {
+		publicUrl: string;
+		rtmpUrl: string;
+		internalUrl: string;
+		apiUrl: string;
+		callbackSecret: string;
+		tokenSecret: string;
+		disconnectGracePeriod: number;
+		waitingTimeout: number;
+		rtspUrl: string;
+	} | null;
 	redis: RedisOptions & RedisOptionsSource;
 	redisForPubsub: RedisOptions & RedisOptionsSource;
 	redisForJobQueue: RedisOptions & RedisOptionsSource;
@@ -346,6 +368,17 @@ export function loadConfig(): Config {
 		videoThumbnailGenerator: config.videoThumbnailGenerator ?
 			config.videoThumbnailGenerator.endsWith('/') ? config.videoThumbnailGenerator.substring(0, config.videoThumbnailGenerator.length - 1) : config.videoThumbnailGenerator
 			: null,
+		liveStreaming: config.liveStreaming ? {
+			publicUrl: config.liveStreaming.publicUrl.replace(/\/$/, ''),
+			rtmpUrl: config.liveStreaming.rtmpUrl.replace(/\/$/, ''),
+			internalUrl: (config.liveStreaming.internalUrl ?? 'http://mediamtx:8888').replace(/\/$/, ''),
+			apiUrl: (config.liveStreaming.apiUrl ?? 'http://mediamtx:9997').replace(/\/$/, ''),
+			callbackSecret: config.liveStreaming.callbackSecret,
+			tokenSecret: config.liveStreaming.tokenSecret,
+			disconnectGracePeriod: config.liveStreaming.disconnectGracePeriod ?? 45,
+			waitingTimeout: config.liveStreaming.waitingTimeout ?? 600,
+			rtspUrl: (config.liveStreaming.rtspUrl ?? 'rtsp://localhost:8554').replace(/\/$/, ''),
+		} : null,
 		userAgent: `Misskey/${version} (${config.url})`,
 		frontendManifestExists: frontendManifestExists,
 		frontendEmbedManifestExists: frontendEmbedManifestExists,

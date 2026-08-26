@@ -40,6 +40,7 @@ export const notificationTypes = [
 	'followRequestAccepted',
 	'roleAssigned',
 	'chatRoomInvitationReceived',
+	'liveStreamStarted',
 	'achievementEarned',
 	'exportCompleted',
 	'login',

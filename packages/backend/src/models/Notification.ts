@@ -99,6 +99,13 @@ export type MiNotification = {
 	createdAt: string;
 	achievement: string;
 } | {
+	type: 'liveStreamStarted';
+	id: string;
+	createdAt: string;
+	notifierId: MiUser['id'];
+	streamId: string;
+	streamTitle: string;
+} | {
 	type: 'exportCompleted';
 	id: string;
 	createdAt: string;

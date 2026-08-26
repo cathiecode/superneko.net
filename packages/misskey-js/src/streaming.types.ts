@@ -36,6 +36,7 @@ export type Channels = {
 	main: {
 		params: null;
 		events: {
+			liveStreamChanged: (payload: LiveStream) => void;
 			notification: (payload: Notification) => void;
 			mention: (payload: Note) => void;
 			reply: (payload: Note) => void;
@@ -64,6 +65,17 @@ export type Channels = {
 			readAntenna: (payload: Antenna) => void;
 			receiveFollowRequest: (payload: User) => void;
 			announcementCreated: (payload: AnnouncementCreated) => void;
+		};
+		receives: null;
+	};
+	liveStream: {
+		params: { streamId: string };
+		events: {
+			streamChanged: (payload: LiveStream) => void;
+			viewersChanged: (payload: { anonymousCount: number; guests: { id: string; name: string; external: true }[]; users: UserLite[] }) => void;
+			chatMessage: (payload: LiveStreamChatMessage) => void;
+			chatMessageDeleted: (payload: { id: string }) => void;
+			ended: () => void;
 		};
 		receives: null;
 	};
@@ -290,6 +302,25 @@ export type Channels = {
 			};
 		};
 	};
+};
+
+export type LiveStream = {
+	id: string;
+	title: string;
+	visibility: 'followers' | 'public';
+	status: 'waiting' | 'live' | 'disconnected' | 'ended';
+	createdAt: string;
+	startedAt: string | null;
+	disconnectedAt: string | null;
+	user: UserLite;
+};
+
+export type LiveStreamChatMessage = {
+	id: string;
+	createdAt: string;
+	text: string;
+	isAnonymous: boolean;
+	user: UserLite | null;
 };
 
 export type NoteUpdatedEvent = { id: Note['id'] } & ({

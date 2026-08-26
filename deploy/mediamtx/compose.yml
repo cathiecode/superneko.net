@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: bluenviron and MediaMTX contributors
+# SPDX-License-Identifier: MIT
+
+services:
+  mediamtx:
+    # The ffmpeg image contains a shell and wget, which path hooks require.
+    image: bluenviron/mediamtx:1.20.1-ffmpeg
+    restart: unless-stopped
+    ports:
+      - "1935:1935"
+      - "8554:8554"
+    expose:
+      - "8888"
+      - "9997"
+    environment:
+      MTX_AUTHHTTPADDRESS: "http://web:3000/live/mediamtx/auth?secret=${LIVE_CALLBACK_SECRET:?set LIVE_CALLBACK_SECRET}"
+      MTX_PATHDEFAULTS_RUNONONLINE: "wget -qO- --header='Content-Type: application/json' --post-data='{}' 'http://web:3000/live/mediamtx/event?secret=${LIVE_CALLBACK_SECRET:?set LIVE_CALLBACK_SECRET}&event=online&path=$$MTX_PATH'"
+      MTX_PATHDEFAULTS_RUNONOFFLINE: "wget -qO- --header='Content-Type: application/json' --post-data='{}' 'http://web:3000/live/mediamtx/event?secret=${LIVE_CALLBACK_SECRET:?set LIVE_CALLBACK_SECRET}&event=offline&path=$$MTX_PATH'"
+      MTX_PATHDEFAULTS_RUNONREAD: "wget -qO- --header='Content-Type: application/json' --post-data='{}' 'http://web:3000/live/mediamtx/event?secret=${LIVE_CALLBACK_SECRET:?set LIVE_CALLBACK_SECRET}&event=read&path=$$MTX_PATH&readerId=$$MTX_READER_ID'"
+      MTX_PATHDEFAULTS_RUNONUNREAD: "wget -qO- --header='Content-Type: application/json' --post-data='{}' 'http://web:3000/live/mediamtx/event?secret=${LIVE_CALLBACK_SECRET:?set LIVE_CALLBACK_SECRET}&event=unread&path=$$MTX_PATH&readerId=$$MTX_READER_ID'"
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml:ro
+    networks:
+      - internal_network
+      - external_network
+
+networks:
+  internal_network:
+    internal: true
+  external_network:

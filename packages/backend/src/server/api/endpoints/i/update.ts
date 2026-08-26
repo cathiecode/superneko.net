@@ -215,6 +215,7 @@ export const paramDef = {
 				followRequestAccepted: notificationRecieveConfig,
 				roleAssigned: notificationRecieveConfig,
 				chatRoomInvitationReceived: notificationRecieveConfig,
+				liveStreamStarted: notificationRecieveConfig,
 				achievementEarned: notificationRecieveConfig,
 				app: notificationRecieveConfig,
 				test: notificationRecieveConfig,

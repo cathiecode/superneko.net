@@ -260,6 +260,9 @@ type AdminInviteListRequest = operations['admin___invite___list']['requestBody']
 type AdminInviteListResponse = operations['admin___invite___list']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type AdminLiveStreamsEndRequest = operations['admin___live-streams___end']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
 type AdminMetaResponse = operations['admin___meta']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
@@ -660,6 +663,7 @@ export type Channels = {
     main: {
         params: null;
         events: {
+            liveStreamChanged: (payload: LiveStream) => void;
             notification: (payload: Notification_2) => void;
             mention: (payload: Note) => void;
             reply: (payload: Note) => void;
@@ -690,6 +694,29 @@ export type Channels = {
             readAntenna: (payload: Antenna) => void;
             receiveFollowRequest: (payload: User) => void;
             announcementCreated: (payload: AnnouncementCreated) => void;
+        };
+        receives: null;
+    };
+    liveStream: {
+        params: {
+            streamId: string;
+        };
+        events: {
+            streamChanged: (payload: LiveStream) => void;
+            viewersChanged: (payload: {
+                anonymousCount: number;
+                guests: {
+                    id: string;
+                    name: string;
+                    external: true;
+                }[];
+                users: UserLite[];
+            }) => void;
+            chatMessage: (payload: LiveStreamChatMessage) => void;
+            chatMessageDeleted: (payload: {
+                id: string;
+            }) => void;
+            ended: () => void;
         };
         receives: null;
     };
@@ -1609,6 +1636,7 @@ declare namespace entities {
         AdminInviteCreateResponse,
         AdminInviteListRequest,
         AdminInviteListResponse,
+        AdminLiveStreamsEndRequest,
         AdminMetaResponse,
         AdminPromoCreateRequest,
         AdminQueueClearRequest,
@@ -2017,6 +2045,21 @@ declare namespace entities {
         InviteLimitResponse,
         InviteListRequest,
         InviteListResponse,
+        LiveStreamChatDeleteRequest,
+        LiveStreamChatMessagesRequest,
+        LiveStreamChatMessagesResponse,
+        LiveStreamChatSendRequest,
+        LiveStreamChatSendResponse,
+        LiveStreamCreateRequest,
+        LiveStreamCreateResponse,
+        LiveStreamFinishRequest,
+        LiveStreamFollowingResponse,
+        LiveStreamGuestJoinRequest,
+        LiveStreamGuestJoinResponse,
+        LiveStreamJoinRequest,
+        LiveStreamJoinResponse,
+        LiveStreamShowRequest,
+        LiveStreamShowResponse,
         MetaRequest,
         MetaResponse,
         MiauthGenTokenRequest,
@@ -2853,6 +2896,71 @@ type IWebhooksTestRequest = operations['i___webhooks___test']['requestBody']['co
 
 // @public (undocumented)
 type IWebhooksUpdateRequest = operations['i___webhooks___update']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+export type LiveStream = {
+    id: string;
+    title: string;
+    status: 'waiting' | 'live' | 'disconnected' | 'ended';
+    createdAt: string;
+    startedAt: string | null;
+    disconnectedAt: string | null;
+    user: UserLite;
+};
+
+// @public (undocumented)
+type LiveStreamChatDeleteRequest = operations['live-stream___chat-delete']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+export type LiveStreamChatMessage = {
+    id: string;
+    createdAt: string;
+    text: string;
+    isAnonymous: boolean;
+    user: UserLite | null;
+};
+
+// @public (undocumented)
+type LiveStreamChatMessagesRequest = operations['live-stream___chat-messages']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LiveStreamChatMessagesResponse = operations['live-stream___chat-messages']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LiveStreamChatSendRequest = operations['live-stream___chat-send']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LiveStreamChatSendResponse = operations['live-stream___chat-send']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LiveStreamCreateRequest = operations['live-stream___create']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LiveStreamCreateResponse = operations['live-stream___create']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LiveStreamFinishRequest = operations['live-stream___finish']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LiveStreamFollowingResponse = operations['live-stream___following']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LiveStreamGuestJoinRequest = operations['live-stream___guest-join']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LiveStreamGuestJoinResponse = operations['live-stream___guest-join']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LiveStreamJoinRequest = operations['live-stream___join']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LiveStreamJoinResponse = operations['live-stream___join']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LiveStreamShowRequest = operations['live-stream___show']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LiveStreamShowResponse = operations['live-stream___show']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type MeDetailed = components['schemas']['MeDetailed'];
@@ -3771,8 +3879,8 @@ type VerifyEmailRequest = operations['verify-email']['requestBody']['content']['
 // Warnings were encountered during analysis:
 //
 // src/streaming.ts:57:3 - (ae-forgotten-export) The symbol "ReconnectingWebSocket" needs to be exported by the entry point index.d.ts
-// src/streaming.types.ts:226:4 - (ae-forgotten-export) The symbol "ReversiUpdateKey" needs to be exported by the entry point index.d.ts
-// src/streaming.types.ts:241:4 - (ae-forgotten-export) The symbol "ReversiUpdateSettings" needs to be exported by the entry point index.d.ts
+// src/streaming.types.ts:238:4 - (ae-forgotten-export) The symbol "ReversiUpdateKey" needs to be exported by the entry point index.d.ts
+// src/streaming.types.ts:253:4 - (ae-forgotten-export) The symbol "ReversiUpdateSettings" needs to be exported by the entry point index.d.ts
 
 // (No @packageDocumentation comment for this package)
 

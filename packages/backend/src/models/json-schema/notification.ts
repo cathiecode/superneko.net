@@ -335,6 +335,16 @@ export const packedNotificationSchema = {
 		type: 'object',
 		properties: {
 			...baseSchema.properties,
+			type: { type: 'string', optional: false, nullable: false, enum: ['liveStreamStarted'] },
+			user: { type: 'object', ref: 'UserLite', optional: false, nullable: false },
+			userId: { type: 'string', optional: false, nullable: false, format: 'id' },
+			streamId: { type: 'string', optional: false, nullable: false, format: 'id' },
+			streamTitle: { type: 'string', optional: false, nullable: false },
+		},
+	}, {
+		type: 'object',
+		properties: {
+			...baseSchema.properties,
 			type: {
 				type: 'string',
 				optional: false, nullable: false,
