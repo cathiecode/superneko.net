@@ -3596,7 +3596,6 @@ _liveStreaming:
   externalUser: "外部ユーザー"
   visibility: "公開範囲"
   followers: "フォロワー限定"
-  local: "すーぱーねこのユーザーのみ"
   public: "全公開"
   publicDescription: "視聴用URLを知っている人が視聴できます。すーぱーねこのユーザーはチャットを閲覧・投稿できます。RTSPでの視聴も有効になります。"
 _qr:
