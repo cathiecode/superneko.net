@@ -6,7 +6,7 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import * as Redis from 'ioredis';
-import { DataSource, In, IsNull, Not, QueryFailedError } from 'typeorm';
+import { DataSource, In, IsNull, LessThan, Not, QueryFailedError } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
 import { IdService } from '@/core/IdService.js';
@@ -48,8 +48,6 @@ export type PackedLiveStreamChatMessage = {
 @Injectable()
 export class LiveStreamingService {
 	private static readonly sessionTtlSeconds = 24 * 60 * 60;
-	private disconnectTimers = new Map<string, NodeJS.Timeout>();
-	private waitingTimers = new Map<string, NodeJS.Timeout>();
 
 	constructor(
 		@Inject(DI.config) private config: Config,
@@ -121,20 +119,22 @@ export class LiveStreamingService {
 		}
 		await this.notifyFollowers(stream);
 		await this.notifyFollowersOfStart(stream);
-		this.scheduleWaitingExpiry(stream);
 		return { stream, publishToken, guestToken };
 	}
 
 	@bindThis
 	public async getActive(id: string): Promise<MiLiveStream | null> {
-		const stream = await this.db.getRepository(MiLiveStream).findOneBy({ id, status: Not('ended') });
+		const repository = this.db.getRepository(MiLiveStream);
+		const stream = await repository.findOneBy({ id, status: Not('ended') });
 		if (stream?.status === 'disconnected' && this.isDisconnectGraceExpired(stream)) {
-			await this.finish(stream.id);
-			return null;
+			return await this.finish(stream.id, { status: stream.status, disconnectedAt: stream.disconnectedAt })
+				? null
+				: await repository.findOneBy({ id, status: Not('ended') });
 		}
 		if (stream?.status === 'waiting' && this.isWaitingExpired(stream)) {
-			await this.finish(stream.id);
-			return null;
+			return await this.finish(stream.id, { status: stream.status, disconnectedAt: stream.disconnectedAt })
+				? null
+				: await repository.findOneBy({ id, status: Not('ended') });
 		}
 		return stream;
 	}
@@ -149,8 +149,8 @@ export class LiveStreamingService {
 		});
 		const active = [];
 		for (const stream of streams) {
-			if (stream.status === 'disconnected' && this.isDisconnectGraceExpired(stream)) await this.finish(stream.id);
-			else if (stream.status === 'waiting' && this.isWaitingExpired(stream)) await this.finish(stream.id);
+			if (stream.status === 'disconnected' && this.isDisconnectGraceExpired(stream)) await this.finish(stream.id, { status: stream.status, disconnectedAt: stream.disconnectedAt });
+			else if (stream.status === 'waiting' && this.isWaitingExpired(stream)) await this.finish(stream.id, { status: stream.status, disconnectedAt: stream.disconnectedAt });
 			else active.push(stream);
 		}
 		return active;
@@ -162,12 +162,6 @@ export class LiveStreamingService {
 
 	private isWaitingExpired(stream: MiLiveStream): boolean {
 		return stream.status === 'waiting' && this.idService.parse(stream.id).date.getTime() + this.liveConfig.waitingTimeout * 1000 <= Date.now();
-	}
-
-	private scheduleWaitingExpiry(stream: MiLiveStream): void {
-		const timer = setTimeout(() => void this.finish(stream.id), this.liveConfig.waitingTimeout * 1000);
-		timer.unref();
-		this.waitingTimers.set(stream.id, timer);
 	}
 
 	private signReadToken(streamId: string, identity: ViewerIdentity): string {
@@ -242,10 +236,6 @@ export class LiveStreamingService {
 		const repository = this.db.getRepository(MiLiveStream);
 		const stream = await repository.findOneBy({ mediaPath: path, status: Not('ended') });
 		if (stream == null) return;
-		const timer = this.disconnectTimers.get(stream.id);
-		if (timer) clearTimeout(timer);
-		this.disconnectTimers.delete(stream.id);
-		const waitingTimer = this.waitingTimers.get(stream.id); if (waitingTimer) clearTimeout(waitingTimer); this.waitingTimers.delete(stream.id);
 		stream.status = 'live'; stream.startedAt ??= new Date(); stream.disconnectedAt = null;
 		await repository.save(stream); await this.publishChanged(stream);
 	}
@@ -257,21 +247,43 @@ export class LiveStreamingService {
 		if (stream == null) return;
 		stream.status = 'disconnected'; stream.disconnectedAt = new Date();
 		await repository.save(stream); await this.publishChanged(stream);
-		const timer = setTimeout(() => void this.finish(stream.id), this.liveConfig.disconnectGracePeriod * 1000);
-		timer.unref(); this.disconnectTimers.set(stream.id, timer);
 	}
 
 	@bindThis
-	public async finish(id: string): Promise<void> {
+	public async finish(id: string, expected?: Pick<MiLiveStream, 'status' | 'disconnectedAt'>): Promise<boolean> {
 		const repository = this.db.getRepository(MiLiveStream);
 		const stream = await repository.findOneBy({ id, status: Not('ended') });
-		if (stream == null) return;
-		const timer = this.disconnectTimers.get(id); if (timer) clearTimeout(timer); this.disconnectTimers.delete(id);
-		const waitingTimer = this.waitingTimers.get(id); if (waitingTimer) clearTimeout(waitingTimer); this.waitingTimers.delete(id);
-		stream.status = 'ended'; stream.endedAt = new Date(); await repository.save(stream);
+		if (stream == null) return false;
+		const endedAt = new Date();
+		const update = repository.createQueryBuilder().update()
+			.set({ status: 'ended', endedAt })
+			.where('id = :id', { id })
+			.andWhere('status <> :ended', { ended: 'ended' });
+		if (expected) {
+			update.andWhere('status = :expectedStatus', { expectedStatus: expected.status });
+			if (expected.disconnectedAt) update.andWhere('"disconnectedAt" = :expectedDisconnectedAt', { expectedDisconnectedAt: expected.disconnectedAt });
+		}
+		const result = await update.execute();
+		if (result.affected !== 1) return false;
+		stream.status = 'ended'; stream.endedAt = endedAt;
 		await this.redisClient.del(this.readersKey(id), this.pendingReadersKey(id), this.participantsKey(id)).catch(() => { /* TTL is the cleanup fallback. */ });
 		await this.publishChanged(stream); this.globalEventService.publishLiveStream(id, 'ended', null);
 		await this.kickPublisher(stream.mediaPath);
+		return true;
+	}
+
+	@bindThis
+	public async finishExpired(): Promise<number> {
+		const now = Date.now();
+		const streams = await this.db.getRepository(MiLiveStream).find({
+			where: [
+				{ status: 'waiting', id: LessThan(this.idService.gen(now - this.liveConfig.waitingTimeout * 1000)) },
+				{ status: 'disconnected', disconnectedAt: LessThan(new Date(now - this.liveConfig.disconnectGracePeriod * 1000)) },
+			],
+			take: 500,
+		});
+		const results = await Promise.all(streams.map(stream => this.finish(stream.id, { status: stream.status, disconnectedAt: stream.disconnectedAt })));
+		return results.filter(Boolean).length;
 	}
 
 	@bindThis
