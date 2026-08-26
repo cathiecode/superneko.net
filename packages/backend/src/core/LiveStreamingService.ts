@@ -50,6 +50,7 @@ export class LiveStreamingService {
 	private waitingTimers = new Map<string, NodeJS.Timeout>();
 	private pendingReaders = new Map<string, { streamId: string; identity: ViewerIdentity; timer: NodeJS.Timeout }>();
 	private readers = new Map<string, Map<string, ViewerIdentity>>();
+	private participants = new Map<string, number>();
 
 	constructor(
 		@Inject(DI.config) private config: Config,
@@ -195,6 +196,7 @@ export class LiveStreamingService {
 
 	@bindThis
 	public async join(stream: MiLiveStream, user: MiUser, anonymous: boolean) {
+		this.rememberParticipant(stream.id, user.id);
 		const token = this.signReadToken(stream.id, { sessionId: randomBytes(12).toString('base64url'), anonymous, userId: user.id });
 		return { playbackUrl: `${this.liveConfig.publicUrl}/${stream.mediaPath}/index.m3u8`, token };
 	}
@@ -214,6 +216,10 @@ export class LiveStreamingService {
 		if (action === 'read') {
 			const identity = this.verifyReadToken(token, stream.id);
 			if (identity != null) {
+				if (identity.userId) {
+					const user = await this.db.getRepository(MiUser).findOneBy({ id: identity.userId });
+					if (user == null || !await this.canView(stream, user)) return false;
+				}
 				if (readerId) this.rememberPendingReader(readerId, stream.id, identity);
 				return true;
 			}
@@ -266,6 +272,7 @@ export class LiveStreamingService {
 		const timer = this.disconnectTimers.get(id); if (timer) clearTimeout(timer); this.disconnectTimers.delete(id);
 		const waitingTimer = this.waitingTimers.get(id); if (waitingTimer) clearTimeout(waitingTimer); this.waitingTimers.delete(id);
 		this.readers.delete(id);
+		for (const key of this.participants.keys()) if (key.startsWith(`${id}:`)) this.participants.delete(key);
 		for (const [readerId, pending] of this.pendingReaders) if (pending.streamId === id) { clearTimeout(pending.timer); this.pendingReaders.delete(readerId); }
 		stream.status = 'ended'; stream.endedAt = new Date(); await repository.save(stream);
 		await this.publishChanged(stream); this.globalEventService.publishLiveStream(id, 'ended', null);
@@ -319,6 +326,24 @@ export class LiveStreamingService {
 		});
 		const packed = await this.packChatMessage(message, user);
 		this.globalEventService.publishLiveStream(stream.id, 'chatMessage', packed); return packed;
+	}
+
+	private rememberParticipant(streamId: string, userId: string): void {
+		if (this.participants.size >= 10_000) {
+			const now = Date.now();
+			for (const [key, expiresAt] of this.participants) if (expiresAt <= now) this.participants.delete(key);
+			const oldestKey = this.participants.keys().next().value;
+			if (this.participants.size >= 10_000 && oldestKey) this.participants.delete(oldestKey);
+		}
+		this.participants.set(`${streamId}:${userId}`, Date.now() + 5 * 60 * 1000);
+	}
+
+	@bindThis
+	public hasJoined(streamId: string, userId: string): boolean {
+		const key = `${streamId}:${userId}`;
+		const expiresAt = this.participants.get(key);
+		if (expiresAt == null || expiresAt <= Date.now()) { this.participants.delete(key); return false; }
+		return true;
 	}
 
 	@bindThis

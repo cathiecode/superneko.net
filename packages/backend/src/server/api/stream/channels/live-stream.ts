@@ -25,9 +25,13 @@ export class LiveStreamChannel extends Channel {
 	@bindThis
 	public async init(params: JsonObject): Promise<boolean> {
 		if (typeof params.streamId !== 'string') return false;
-		const stream = await this.liveStreamingService.getActive(params.streamId);
+		const streamId = params.streamId;
+		const stream = await this.liveStreamingService.getActive(streamId);
 		if (stream == null || !await this.liveStreamingService.canView(stream, this.user ?? null)) return false;
-		this.subscriber.on(`liveStream:${params.streamId}`, data => this.send(data.type, data.body));
+		this.subscriber.on(`liveStream:${streamId}`, data => {
+			if ((data.type === 'chatMessage' || data.type === 'chatMessageDeleted') && (this.user == null || !this.liveStreamingService.hasJoined(streamId, this.user.id))) return;
+			this.send(data.type, data.body);
+		});
 		return true;
 	}
 }

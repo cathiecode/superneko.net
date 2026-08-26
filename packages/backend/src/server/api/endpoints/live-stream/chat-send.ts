@@ -11,5 +11,5 @@ export const meta = { tags: ['live-stream'], requireCredential: true, prohibitMo
 export const paramDef = { type: 'object', properties: { streamId: { type: 'string', format: 'misskey:id' }, text: { type: 'string', minLength: 1, maxLength: 1000, pattern: '\\S' }, anonymous: { type: 'boolean', default: false } }, required: ['streamId', 'text'] } as const;
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
-	constructor(service: LiveStreamingService) { super(meta, paramDef, async (ps, me) => { const stream = await service.getActive(ps.streamId); if (!stream || !await service.canView(stream, me)) throw new ApiError(meta.errors.noSuchStream); return await service.createChatMessage(stream, me, ps.text.trim(), ps.anonymous); }); }
+	constructor(service: LiveStreamingService) { super(meta, paramDef, async (ps, me) => { const stream = await service.getActive(ps.streamId); if (!stream || !await service.canView(stream, me) || !service.hasJoined(stream.id, me.id)) throw new ApiError(meta.errors.noSuchStream); return await service.createChatMessage(stream, me, ps.text.trim(), ps.anonymous); }); }
 }
