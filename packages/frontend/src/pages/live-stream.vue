@@ -14,9 +14,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<span :class="$style.status" role="status" aria-live="polite"><i class="ti ti-point-filled"></i> {{ statusText }}</span>
 			</section>
 
-			<section v-if="isOwner && publishUrl" class="_panel _gaps" :class="$style.control">
+			<section v-if="isOwner" class="_panel _gaps" :class="$style.control">
 				<h3>{{ howlText.broadcastControl }}</h3>
-				<MkInput :modelValue="publishUrl" readonly>
+				<MkInput v-if="publishUrl" :modelValue="publishUrl" readonly>
 					<template #label>{{ howlText.rtmpEndpoint }}</template>
 				</MkInput>
 				<MkInfo v-if="obsSettings">
@@ -26,7 +26,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkInput v-if="guestUrl" :modelValue="guestUrl" readonly><template #label>{{ howlText.guestUrl }}</template></MkInput>
 				<MkInput v-if="rtspUrl" :modelValue="rtspUrl" readonly><template #label>{{ howlText.rtspEndpoint }}</template></MkInput>
 				<div :class="$style.actions">
-					<MkButton @click="copyPublishUrl"><i class="ti ti-copy"></i> {{ i18n.ts.copy }}</MkButton>
+					<MkButton v-if="publishUrl" @click="copyPublishUrl"><i class="ti ti-copy"></i> {{ i18n.ts.copy }}</MkButton>
 					<MkButton danger @click="finish"><i class="ti ti-player-stop"></i> {{ howlText.end }}</MkButton>
 				</div>
 			</section>
