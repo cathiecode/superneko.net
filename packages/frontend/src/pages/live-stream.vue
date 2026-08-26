@@ -26,6 +26,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkInput v-if="guestUrl" :modelValue="guestUrl" readonly><template #label>{{ howlText.guestUrl }}</template></MkInput>
 				<MkInput v-if="rtspUrl" :modelValue="rtspUrl" readonly><template #label>{{ howlText.rtspEndpoint }}</template></MkInput>
 				<div :class="$style.actions">
+					<MkButton v-if="guestUrl" primary @click="share"><i class="ti ti-share"></i> {{ howlText.share }}</MkButton>
 					<MkButton v-if="publishUrl" @click="copyPublishUrl"><i class="ti ti-copy"></i> {{ i18n.ts.copy }}</MkButton>
 					<MkButton danger @click="finish"><i class="ti ti-player-stop"></i> {{ howlText.end }}</MkButton>
 				</div>
@@ -233,6 +234,8 @@ async function deleteMessage(messageId: string) { await misskeyApi('live-stream/
 async function finish() { const { canceled } = await os.confirm({ type: 'warning', text: howlText.endConfirm }); if (!canceled) await misskeyApi('live-stream/finish', { streamId: props.streamId }); }
 
 function copyPublishUrl() { if (publishUrl.value) copyToClipboard(publishUrl.value); }
+
+function share() { if (stream.value && guestUrl.value) os.post({ initialText: howlText.sharePost(stream.value.title, guestUrl.value) }); }
 
 connection?.on('streamChanged', value => { stream.value = value; });
 connection?.on('viewersChanged', value => { viewers.value = value; });
