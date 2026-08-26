@@ -8,7 +8,7 @@ export const liveStreamSchema = {
 	properties: {
 		id: { type: 'string', format: 'misskey:id', optional: false, nullable: false },
 		title: { type: 'string', optional: false, nullable: false },
-		visibility: { type: 'string', enum: ['followers', 'local', 'public'], optional: false, nullable: false },
+		visibility: { type: 'string', enum: ['followers', 'public'], optional: false, nullable: false },
 		status: { type: 'string', enum: ['waiting', 'live', 'disconnected', 'ended'], optional: false, nullable: false },
 		createdAt: { type: 'string', format: 'date-time', optional: false, nullable: false },
 		startedAt: { type: 'string', format: 'date-time', optional: false, nullable: true },

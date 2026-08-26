@@ -31,8 +31,8 @@ export class MiLiveStream {
 	@Column('varchar', { length: 64 })
 	public publishTokenHash: string;
 
-	@Column('varchar', { length: 16, default: 'local' })
-	public visibility: 'followers' | 'local' | 'public';
+	@Column('varchar', { length: 16, default: 'followers' })
+	public visibility: 'followers' | 'public';
 
 	@Column('varchar', { length: 64, nullable: true })
 	public guestTokenHash: string | null;

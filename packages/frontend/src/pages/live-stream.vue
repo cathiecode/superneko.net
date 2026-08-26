@@ -11,7 +11,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<template v-else-if="stream">
 			<section class="_panel" :class="$style.header">
 				<div :class="$style.author"><MkAvatar :user="stream.user" :class="$style.avatar"/><div><h2>{{ stream.title }}</h2><MkUserName :user="stream.user"/></div></div>
-				<span :class="$style.status"><i class="ti ti-point-filled"></i> {{ statusText }}</span>
+				<span :class="$style.status" role="status" aria-live="polite"><i class="ti ti-point-filled"></i> {{ statusText }}</span>
 			</section>
 
 			<section v-if="isOwner && publishUrl" class="_panel _gaps" :class="$style.control">
@@ -19,6 +19,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkInput :modelValue="publishUrl" readonly>
 					<template #label>{{ howlText.rtmpEndpoint }}</template>
 				</MkInput>
+				<MkInfo v-if="obsSettings">
+					<p>{{ howlText.obsGuide }}</p>
+					<dl :class="$style.obsSettings"><dt>{{ howlText.obsServer }}</dt><dd>{{ obsSettings.server }}</dd><dt>{{ howlText.obsStreamKey }}</dt><dd>{{ obsSettings.streamKey }}</dd></dl>
+				</MkInfo>
 				<MkInput v-if="guestUrl" :modelValue="guestUrl" readonly><template #label>{{ howlText.guestUrl }}</template></MkInput>
 				<MkInput v-if="rtspUrl" :modelValue="rtspUrl" readonly><template #label>{{ howlText.rtspEndpoint }}</template></MkInput>
 				<div :class="$style.actions">
@@ -39,7 +43,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 			<template v-else>
 				<section class="_panel" :class="$style.player">
-					<video ref="videoEl" controls autoplay playsinline :aria-label="howlText.playerLabel"></video>
+					<video ref="videoEl" :controls="isIos" autoplay playsinline :aria-label="howlText.playerLabel" @play="playbackPaused = false" @pause="playbackPaused = true"></video>
+					<div :class="$style.playerControls">
+						<MkButton v-if="!isIos" @click="togglePlayback"><i :class="playbackPaused ? 'ti ti-player-play' : 'ti ti-player-pause'"></i> {{ playbackPaused ? howlText.play : howlText.pause }}</MkButton>
+						<MkButton v-if="!isIos" @click="toggleMute"><i :class="muted ? 'ti ti-volume' : 'ti ti-volume-off'"></i> {{ muted ? howlText.unmute : howlText.mute }}</MkButton>
+						<MkButton :disabled="resyncing" @click="resync"><i class="ti ti-refresh"></i> {{ howlText.resync }}</MkButton>
+					</div>
 					<div v-if="stream.status === 'disconnected'" :class="$style.interruption">{{ howlText.temporarilyDisconnected }}</div>
 				</section>
 				<section v-if="$i" class="_panel _gaps" :class="$style.chat">
@@ -100,15 +109,27 @@ const anonymous = ref(true);
 const chatAnonymously = ref(false);
 const chatText = ref('');
 const messages = ref<Misskey.LiveStreamChatMessage[]>([]);
+const playbackPaused = ref(true);
+const muted = ref(false);
+const resyncing = ref(false);
 const videoEl = useTemplateRef('videoEl');
 let hls: Hls | null = null;
 let playbackRefreshTimer: number | null = null;
 let guestStatusTimer: number | null = null;
+let playerRetryTimer: number | null = null;
+let currentPlayback: { url: string; token: string } | null = null;
+let resyncPending = false;
 // The page component is recreated when the route parameter changes.
 // eslint-disable-next-line vue/no-setup-props-reactivity-loss
 const connection = $i ? useStream().useChannel('liveStream', { streamId: props.streamId }) : null;
 const isOwner = computed(() => stream.value?.user.id === $i?.id);
 const statusText = computed(() => stream.value?.status === 'waiting' ? howlText.waiting : stream.value?.status === 'disconnected' ? howlText.temporarilyDisconnected : howlText.live);
+const isIos = /iPad|iPhone|iPod/.test(window.navigator.userAgent) || (/Macintosh/.test(window.navigator.userAgent) && window.navigator.maxTouchPoints > 1);
+const obsSettings = computed(() => {
+	if (!publishUrl.value) return null;
+	const marker = publishUrl.value.indexOf('/live/');
+	return marker < 0 ? null : { server: publishUrl.value.slice(0, marker), streamKey: publishUrl.value.slice(marker + 1) };
+});
 
 async function load() {
 	try { stream.value = await misskeyApi('live-stream/show', { streamId: props.streamId }); loadFailed.value = false; } catch { loadFailed.value = true; } finally { loading.value = false; }
@@ -148,19 +169,52 @@ async function refreshPlayback() {
 
 function stopPlayback() {
 	hls?.destroy(); hls = null; joined.value = false;
+	if (videoEl.value) { videoEl.value.pause(); videoEl.value.removeAttribute('src'); videoEl.value.load(); }
 	if (playbackRefreshTimer) window.clearInterval(playbackRefreshTimer); playbackRefreshTimer = null;
+	if (playerRetryTimer) window.clearTimeout(playerRetryTimer); playerRetryTimer = null;
 }
 
 function attachPlayer(url: string, token: string) {
+	currentPlayback = { url, token };
 	hls?.destroy(); hls = null;
+	if (playerRetryTimer) window.clearTimeout(playerRetryTimer); playerRetryTimer = null;
 	if (!videoEl.value) return;
 	if (Hls.isSupported()) {
-		hls = new Hls({ xhrSetup: xhr => xhr.setRequestHeader('Authorization', `Bearer ${token}`) });
+		hls = new Hls({ lowLatencyMode: true, xhrSetup: xhr => xhr.setRequestHeader('Authorization', `Bearer ${token}`) });
+		hls.on(Hls.Events.MANIFEST_PARSED, () => {
+			if (playerRetryTimer) window.clearTimeout(playerRetryTimer); playerRetryTimer = null;
+			if (resyncPending && hls?.liveSyncPosition != null && videoEl.value) { videoEl.value.currentTime = hls.liveSyncPosition; resyncPending = false; }
+			void safePlay();
+		});
+		hls.on(Hls.Events.ERROR, (_event, data) => { if (data.fatal) schedulePlayerRetry(); });
 		hls.loadSource(url); hls.attachMedia(videoEl.value);
 	} else {
 		videoEl.value.src = `${url}?token=${encodeURIComponent(token)}`;
+		videoEl.value.load();
+		videoEl.value.addEventListener('loadedmetadata', () => {
+			if (resyncPending && videoEl.value?.seekable.length) { videoEl.value.currentTime = videoEl.value.seekable.end(videoEl.value.seekable.length - 1); resyncPending = false; }
+			void safePlay();
+		}, { once: true });
 	}
 }
+
+function schedulePlayerRetry() {
+	if (playerRetryTimer || !currentPlayback) return;
+	playerRetryTimer = window.setTimeout(() => { playerRetryTimer = null; if (currentPlayback) attachPlayer(currentPlayback.url, currentPlayback.token); }, 3000);
+}
+
+async function resync() {
+	resyncing.value = true; resyncPending = true;
+	try { await refreshPlayback(); } catch { schedulePlayerRetry(); } finally { resyncing.value = false; }
+}
+
+async function safePlay() {
+	try { await videoEl.value?.play(); } catch { playbackPaused.value = true; }
+}
+
+function togglePlayback() { if (videoEl.value?.paused) void safePlay(); else videoEl.value?.pause(); }
+
+function toggleMute() { if (videoEl.value) { videoEl.value.muted = !videoEl.value.muted; muted.value = videoEl.value.muted; } }
 
 async function sendMessage() {
 	const text = chatText.value.trim(); if (!text) return;
@@ -204,7 +258,11 @@ definePage(() => ({ title: stream.value?.title ?? howlText.title, icon: 'ti ti-b
 .actions, .chatActions { display: flex; align-items: center; justify-content: flex-end; gap: var(--MI-marginHalf); flex-wrap: wrap; }
 .player { position: relative; overflow: hidden; background: var(--MI_THEME-bg); }
 .player video { display: block; width: 100%; max-height: 70vh; background: var(--MI_THEME-bg); }
-.interruption { position: absolute; inset: 0; display: grid; place-items: center; color: var(--MI_THEME-fg); background: color-mix(in srgb, var(--MI_THEME-bg) 80%, transparent); }
+.playerControls { position: absolute; z-index: 2; right: var(--MI-marginHalf); bottom: var(--MI-marginHalf); display: flex; gap: var(--MI-marginHalf); }
+.obsSettings { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--MI-marginHalf); margin: var(--MI-marginHalf) 0 0; }
+.obsSettings dt { font-weight: bold; }
+.obsSettings dd { margin: 0; overflow-wrap: anywhere; user-select: text; }
+.interruption { position: absolute; z-index: 1; inset: 0; display: grid; place-items: center; color: var(--MI_THEME-fg); background: color-mix(in srgb, var(--MI_THEME-bg) 80%, transparent); }
 .messages { max-height: 360px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
 .message { display: flex; align-items: flex-start; gap: var(--MI-marginHalf); }
 .messageAvatar { width: 32px; height: 32px; }

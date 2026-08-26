@@ -24,7 +24,7 @@ export const meta = {
 } as const;
 export const paramDef = { type: 'object', properties: {
 	title: { type: 'string', minLength: 1, maxLength: 200, pattern: '\\S' },
-	visibility: { type: 'string', enum: ['followers', 'local', 'public'], default: 'local' },
+	visibility: { type: 'string', enum: ['followers', 'public'], default: 'followers' },
 }, required: ['title'] } as const;
 
 @Injectable()

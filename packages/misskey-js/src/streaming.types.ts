@@ -307,6 +307,7 @@ export type Channels = {
 export type LiveStream = {
 	id: string;
 	title: string;
+	visibility: 'followers' | 'public';
 	status: 'waiting' | 'live' | 'disconnected' | 'ended';
 	createdAt: string;
 	startedAt: string | null;

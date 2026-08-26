@@ -6,13 +6,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <section v-if="$i && streams.length" :class="$style.root" class="_panel">
 	<div :class="$style.header">
-		<strong><i class="ti ti-broadcast"></i> {{ howlText.title }}</strong>
+		<strong><i class="ti ti-broadcast"></i> Howl</strong>
 	</div>
 	<div v-if="streams.length" :class="$style.streams">
 		<button v-for="stream in streams" :key="stream.id" class="_button" :class="$style.stream" @click="os.pageWindow(`/live/${stream.id}`)">
 			<MkAvatar :user="stream.user" :class="$style.avatar"/>
 			<span :class="$style.text"><b>{{ stream.title }}</b><small>{{ stream.user.name ?? stream.user.username }}</small></span>
-			<span :class="$style.live"><i class="ti ti-point-filled"></i> {{ stream.status === 'waiting' ? howlText.waiting : howlText.live }}</span>
+			<span :class="$style.live"><i class="ti ti-point-filled"></i> {{ stream.status === 'waiting' ? howlText.waiting : stream.status === 'disconnected' ? howlText.temporarilyDisconnected : howlText.live }}</span>
 		</button>
 	</div>
 </section>

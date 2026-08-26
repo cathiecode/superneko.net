@@ -186,7 +186,7 @@ export class LiveStreamingService {
 	public async canView(stream: MiLiveStream, user: MiUser | null): Promise<boolean> {
 		if (stream.visibility === 'public') return true;
 		if (user == null || user.host != null) return false;
-		if (stream.visibility === 'local' || stream.userId === user.id) return true;
+		if (stream.userId === user.id) return true;
 		return await this.db.getRepository(MiFollowing).existsBy({ followerId: user.id, followerHost: IsNull(), followeeId: stream.userId, followeeHost: IsNull() });
 	}
 

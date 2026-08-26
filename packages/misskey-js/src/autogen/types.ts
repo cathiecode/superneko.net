@@ -29276,10 +29276,10 @@ export interface operations {
                 'application/json': {
                     title: string;
                     /**
-                     * @default local
+                     * @default followers
                      * @enum {string}
                      */
-                    visibility?: 'followers' | 'local' | 'public';
+                    visibility?: 'followers' | 'public';
                 };
             };
         };
@@ -29296,7 +29296,7 @@ export interface operations {
                             id: string;
                             title: string;
                             /** @enum {string} */
-                            visibility: 'followers' | 'local' | 'public';
+                            visibility: 'followers' | 'public';
                             /** @enum {string} */
                             status: 'waiting' | 'live' | 'disconnected' | 'ended';
                             /** Format: date-time */
@@ -29454,7 +29454,7 @@ export interface operations {
                         id: string;
                         title: string;
                         /** @enum {string} */
-                        visibility: 'followers' | 'local' | 'public';
+                        visibility: 'followers' | 'public';
                         /** @enum {string} */
                         status: 'waiting' | 'live' | 'disconnected' | 'ended';
                         /** Format: date-time */
@@ -29695,7 +29695,7 @@ export interface operations {
                         id: string;
                         title: string;
                         /** @enum {string} */
-                        visibility: 'followers' | 'local' | 'public';
+                        visibility: 'followers' | 'public';
                         /** @enum {string} */
                         status: 'waiting' | 'live' | 'disconnected' | 'ended';
                         /** Format: date-time */
