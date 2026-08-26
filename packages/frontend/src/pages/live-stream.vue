@@ -7,6 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <PageWithHeader :actions="headerActions" :displayMyAvatar="true">
 	<div class="_spacer _gaps" style="--MI_SPACER-w: 900px;">
 		<MkLoading v-if="loading"/>
+		<MkInfo v-else-if="loadFailed" warn>{{ howlText.loadFailed }}</MkInfo>
 		<template v-else-if="stream">
 			<section class="_panel" :class="$style.header">
 				<div :class="$style.author"><MkAvatar :user="stream.user" :class="$style.avatar"/><div><h2>{{ stream.title }}</h2><MkUserName :user="stream.user"/></div></div>
@@ -38,12 +39,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 			<template v-else>
 				<section class="_panel" :class="$style.player">
-					<video ref="videoEl" controls autoplay playsinline></video>
+					<video ref="videoEl" controls autoplay playsinline :aria-label="howlText.playerLabel"></video>
 					<div v-if="stream.status === 'disconnected'" :class="$style.interruption">{{ howlText.temporarilyDisconnected }}</div>
 				</section>
 				<section v-if="$i" class="_panel _gaps" :class="$style.chat">
 					<h3>{{ howlText.listeners }}</h3>
-					<div :class="$style.viewerList"><span v-for="user in viewers.users" :key="user.id"><MkAvatar :user="user" :class="$style.viewerAvatar"/>{{ user.name ?? user.username }}</span><span v-for="guest in viewers.guests" :key="guest.name">{{ guest.name }} ({{ howlText.externalUser }})</span><span v-if="viewers.anonymousCount">{{ howlText.anonymousListeners(viewers.anonymousCount) }}</span></div>
+					<div :class="$style.viewerList"><span v-for="user in viewers.users" :key="user.id"><MkAvatar :user="user" :class="$style.viewerAvatar"/>{{ user.name ?? user.username }}</span><span v-for="guest in viewers.guests" :key="guest.id">{{ guest.name }} ({{ howlText.externalUser }})</span><span v-if="viewers.anonymousCount">{{ howlText.anonymousListeners(viewers.anonymousCount) }}</span></div>
 				</section>
 
 				<section v-if="$i" class="_panel _gaps" :class="$style.chat">
@@ -74,6 +75,7 @@ import MkButton from '@/components/MkButton.vue';
 import MkInput from '@/components/MkInput.vue';
 import MkTextarea from '@/components/MkTextarea.vue';
 import MkSwitch from '@/components/MkSwitch.vue';
+import MkInfo from '@/components/MkInfo.vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
 import { useStream } from '@/stream.js';
@@ -85,13 +87,14 @@ import { howlText } from '@/pages/_components/howl-text.js';
 
 const props = defineProps<{ streamId: string }>();
 const loading = ref(true);
+const loadFailed = ref(false);
 const stream = ref<Misskey.LiveStream | null>(null);
 const publishUrl = ref<string | null>(null);
 const guestUrl = ref<string | null>(null);
 const rtspUrl = ref<string | null>(null);
 const guestToken = new URLSearchParams(window.location.search).get('guest');
 const guestName = ref('');
-const viewers = ref<{ anonymousCount: number; guests: { name: string; external: true }[]; users: Misskey.LiveStream['user'][] }>({ anonymousCount: 0, guests: [], users: [] });
+const viewers = ref<{ anonymousCount: number; guests: { id: string; name: string; external: true }[]; users: Misskey.LiveStream['user'][] }>({ anonymousCount: 0, guests: [], users: [] });
 const joined = ref(false);
 const anonymous = ref(true);
 const chatAnonymously = ref(false);
@@ -100,6 +103,7 @@ const messages = ref<Misskey.LiveStreamChatMessage[]>([]);
 const videoEl = useTemplateRef('videoEl');
 let hls: Hls | null = null;
 let playbackRefreshTimer: number | null = null;
+let guestStatusTimer: number | null = null;
 // The page component is recreated when the route parameter changes.
 // eslint-disable-next-line vue/no-setup-props-reactivity-loss
 const connection = $i ? useStream().useChannel('liveStream', { streamId: props.streamId }) : null;
@@ -107,7 +111,7 @@ const isOwner = computed(() => stream.value?.user.id === $i?.id);
 const statusText = computed(() => stream.value?.status === 'waiting' ? howlText.waiting : stream.value?.status === 'disconnected' ? howlText.temporarilyDisconnected : howlText.live);
 
 async function load() {
-	try { stream.value = await misskeyApi('live-stream/show', { streamId: props.streamId }); } finally { loading.value = false; }
+	try { stream.value = await misskeyApi('live-stream/show', { streamId: props.streamId }); loadFailed.value = false; } catch { loadFailed.value = true; } finally { loading.value = false; }
 }
 
 async function join(asAnonymous: boolean) {
@@ -118,8 +122,7 @@ async function join(asAnonymous: boolean) {
 	await new Promise(resolve => window.setTimeout(resolve));
 	attachPlayer(playback.playbackUrl, playback.token);
 	messages.value = await misskeyApi('live-stream/chat-messages', { streamId: props.streamId });
-	if (playbackRefreshTimer) window.clearInterval(playbackRefreshTimer);
-	playbackRefreshTimer = window.setInterval(() => void refreshPlayback(), 4 * 60 * 1000);
+	startPlaybackRefresh();
 }
 
 async function joinGuest() {
@@ -128,11 +131,24 @@ async function joinGuest() {
 	joined.value = true;
 	await new Promise(resolve => window.setTimeout(resolve));
 	attachPlayer(playback.playbackUrl, playback.token);
+	startPlaybackRefresh();
+}
+
+function startPlaybackRefresh() {
+	if (playbackRefreshTimer) window.clearInterval(playbackRefreshTimer);
+	playbackRefreshTimer = window.setInterval(() => void refreshPlayback().catch(stopPlayback), 4 * 60 * 1000);
 }
 
 async function refreshPlayback() {
-	const playback = await misskeyApi('live-stream/join', { streamId: props.streamId, anonymous: anonymous.value });
+	const playback = $i
+		? await misskeyApi('live-stream/join', { streamId: props.streamId, anonymous: anonymous.value })
+		: await misskeyApi('live-stream/guest-join', { streamId: props.streamId, guestToken: guestToken!, name: guestName.value.trim() });
 	attachPlayer(playback.playbackUrl, playback.token);
+}
+
+function stopPlayback() {
+	hls?.destroy(); hls = null; joined.value = false;
+	if (playbackRefreshTimer) window.clearInterval(playbackRefreshTimer); playbackRefreshTimer = null;
 }
 
 function attachPlayer(url: string, token: string) {
@@ -162,7 +178,7 @@ connection?.on('streamChanged', value => { stream.value = value; });
 connection?.on('viewersChanged', value => { viewers.value = value; });
 connection?.on('chatMessage', message => { messages.value.push(message); });
 connection?.on('chatMessageDeleted', ({ id }) => { messages.value = messages.value.filter(message => message.id !== id); });
-connection?.on('ended', () => { hls?.destroy(); joined.value = false; os.alert({ type: 'info', text: howlText.ended }); });
+connection?.on('ended', () => { stopPlayback(); os.alert({ type: 'info', text: howlText.ended }); });
 
 onMounted(async () => {
 	await load();
@@ -170,8 +186,9 @@ onMounted(async () => {
 	if (stored) publishUrl.value = stored;
 	guestUrl.value = sessionStorage.getItem(`live-guest-url:${props.streamId}`);
 	rtspUrl.value = sessionStorage.getItem(`live-rtsp-url:${props.streamId}`);
+	if (!$i) guestStatusTimer = window.setInterval(async () => { await load(); if (loadFailed.value) stopPlayback(); }, 10 * 1000);
 });
-onBeforeUnmount(() => { hls?.destroy(); connection?.dispose(); if (playbackRefreshTimer) window.clearInterval(playbackRefreshTimer); });
+onBeforeUnmount(() => { stopPlayback(); connection?.dispose(); if (guestStatusTimer) window.clearInterval(guestStatusTimer); });
 
 const headerActions = computed(() => $i?.isModerator && !isOwner.value ? [{ icon: 'ti ti-player-stop', text: howlText.forceEnd, handler: async () => { await misskeyApi('admin/live-streams/end', { streamId: props.streamId }); } }] : []);
 definePage(() => ({ title: stream.value?.title ?? howlText.title, icon: 'ti ti-broadcast' }));

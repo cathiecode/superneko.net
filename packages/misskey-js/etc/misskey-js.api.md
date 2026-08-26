@@ -703,9 +703,14 @@ export type Channels = {
         };
         events: {
             streamChanged: (payload: LiveStream) => void;
-            participantJoined: (payload: {
-                anonymous: boolean;
-                user?: UserLite;
+            viewersChanged: (payload: {
+                anonymousCount: number;
+                guests: {
+                    id: string;
+                    name: string;
+                    external: true;
+                }[];
+                users: UserLite[];
             }) => void;
             chatMessage: (payload: LiveStreamChatMessage) => void;
             chatMessageDeleted: (payload: {

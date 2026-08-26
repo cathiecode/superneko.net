@@ -47,7 +47,7 @@ export type PackedLiveStreamChatMessage = {
 export class LiveStreamingService {
 	private disconnectTimers = new Map<string, NodeJS.Timeout>();
 	private waitingTimers = new Map<string, NodeJS.Timeout>();
-	private pendingReaders = new Map<string, ViewerIdentity>();
+	private pendingReaders = new Map<string, { streamId: string; identity: ViewerIdentity; timer: NodeJS.Timeout }>();
 	private readers = new Map<string, Map<string, ViewerIdentity>>();
 
 	constructor(
@@ -65,6 +65,11 @@ export class LiveStreamingService {
 
 	private hash(value: string): string {
 		return createHash('sha256').update(value).digest('hex');
+	}
+
+	private hashMatches(value: string, expectedHash: string): boolean {
+		const actual = this.hash(value);
+		return actual.length === expectedHash.length && timingSafeEqual(Buffer.from(actual), Buffer.from(expectedHash));
 	}
 
 	@bindThis
@@ -182,7 +187,7 @@ export class LiveStreamingService {
 		if (stream.visibility === 'public') return true;
 		if (user == null || user.host != null) return false;
 		if (stream.visibility === 'local' || stream.userId === user.id) return true;
-		return await this.db.getRepository(MiFollowing).existsBy({ followerId: user.id, followeeId: stream.userId, followeeHost: IsNull() });
+		return await this.db.getRepository(MiFollowing).existsBy({ followerId: user.id, followerHost: IsNull(), followeeId: stream.userId, followeeHost: IsNull() });
 	}
 
 	@bindThis
@@ -193,7 +198,7 @@ export class LiveStreamingService {
 
 	@bindThis
 	public async joinGuest(stream: MiLiveStream, guestToken: string, name: string) {
-		if (stream.visibility !== 'public' || stream.guestTokenHash == null || this.hash(guestToken) !== stream.guestTokenHash) return null;
+		if (stream.visibility !== 'public' || stream.guestTokenHash == null || !this.hashMatches(guestToken, stream.guestTokenHash)) return null;
 		const token = this.signReadToken(stream.id, { sessionId: randomBytes(12).toString('base64url'), anonymous: false, guestName: name });
 		return { playbackUrl: `${this.liveConfig.publicUrl}/${stream.mediaPath}/index.m3u8`, token };
 	}
@@ -206,14 +211,24 @@ export class LiveStreamingService {
 		if (action === 'read') {
 			const identity = this.verifyReadToken(token, stream.id);
 			if (identity != null) {
-				if (readerId) this.pendingReaders.set(readerId, identity);
+				if (readerId) this.rememberPendingReader(readerId, stream.id, identity);
 				return true;
 			}
-			const isPublicCapability = stream.visibility === 'public' && stream.guestTokenHash != null && this.hash(token) === stream.guestTokenHash;
-			if (isPublicCapability && readerId) this.pendingReaders.set(readerId, { sessionId: readerId, anonymous: true });
+			const isPublicCapability = stream.visibility === 'public' && stream.guestTokenHash != null && this.hashMatches(token, stream.guestTokenHash);
+			if (isPublicCapability && readerId) this.rememberPendingReader(readerId, stream.id, { sessionId: readerId, anonymous: true });
 			return isPublicCapability;
 		}
 		return false;
+	}
+
+	private rememberPendingReader(readerId: string, streamId: string, identity: ViewerIdentity): void {
+		const previous = this.pendingReaders.get(readerId); if (previous) clearTimeout(previous.timer);
+		if (this.pendingReaders.size >= 10_000) {
+			const oldestId = this.pendingReaders.keys().next().value;
+			if (oldestId) { clearTimeout(this.pendingReaders.get(oldestId)!.timer); this.pendingReaders.delete(oldestId); }
+		}
+		const timer = setTimeout(() => this.pendingReaders.delete(readerId), 30_000); timer.unref();
+		this.pendingReaders.set(readerId, { streamId, identity, timer });
 	}
 
 	@bindThis
@@ -248,6 +263,7 @@ export class LiveStreamingService {
 		const timer = this.disconnectTimers.get(id); if (timer) clearTimeout(timer); this.disconnectTimers.delete(id);
 		const waitingTimer = this.waitingTimers.get(id); if (waitingTimer) clearTimeout(waitingTimer); this.waitingTimers.delete(id);
 		this.readers.delete(id);
+		for (const [readerId, pending] of this.pendingReaders) if (pending.streamId === id) { clearTimeout(pending.timer); this.pendingReaders.delete(readerId); }
 		stream.status = 'ended'; stream.endedAt = new Date(); await repository.save(stream);
 		await this.publishChanged(stream); this.globalEventService.publishLiveStream(id, 'ended', null);
 		await this.kickPublisher(stream.mediaPath);
@@ -257,8 +273,9 @@ export class LiveStreamingService {
 	public async readerOnline(path: string, readerId: string): Promise<void> {
 		const stream = await this.db.getRepository(MiLiveStream).findOneBy({ mediaPath: path, status: Not('ended') });
 		if (stream == null || !readerId) return;
-		const identity = this.pendingReaders.get(readerId) ?? { sessionId: readerId, anonymous: true };
-		this.pendingReaders.delete(readerId);
+		const pending = this.pendingReaders.get(readerId);
+		const identity = pending?.identity ?? { sessionId: readerId, anonymous: true };
+		if (pending) clearTimeout(pending.timer); this.pendingReaders.delete(readerId);
 		const streamReaders = this.readers.get(stream.id) ?? new Map<string, ViewerIdentity>();
 		streamReaders.set(readerId, identity); this.readers.set(stream.id, streamReaders);
 		await this.publishViewers(stream.id);
@@ -276,7 +293,7 @@ export class LiveStreamingService {
 		const identities = [...(this.readers.get(streamId)?.values() ?? [])];
 		const unique = [...new Map(identities.map(identity => [identity.sessionId, identity])).values()];
 		const anonymousCount = unique.filter(identity => identity.anonymous).length;
-		const guests = unique.filter(identity => !identity.anonymous && identity.guestName).map(identity => ({ name: identity.guestName!, external: true as const }));
+		const guests = unique.filter(identity => !identity.anonymous && identity.guestName).map(identity => ({ id: identity.sessionId, name: identity.guestName!, external: true as const }));
 		const userIds = [...new Set(unique.filter(identity => !identity.anonymous && identity.userId).map(identity => identity.userId!))];
 		const users = await Promise.all(userIds.map(userId => this.userEntityService.pack(userId, null, { schema: 'UserLite' })));
 		this.globalEventService.publishLiveStream(streamId, 'viewersChanged', { anonymousCount, guests, users });

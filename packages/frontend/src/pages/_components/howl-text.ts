@@ -14,6 +14,7 @@ const en = {
 	externalUser: 'External user', displayName: 'Display name', listen: 'Listen', listeners: 'Listeners', chat: 'Howl chat', chatPlaceholder: 'Write a message',
 	chatAnonymously: 'Post anonymously', visibility: 'Visibility', followers: 'Followers only', local: 'Superneko users only', public: 'Public',
 	publicDescription: 'Anyone with the guest URL can watch. External viewers cannot see or use chat.', noFollowingStreams: 'No followed users are Howling.',
+	loadFailed: 'This Howl is unavailable or has ended.', playerLabel: 'Howl video player',
 } as const;
 
 const ja = {
@@ -25,5 +26,6 @@ const ja = {
 	externalUser: '外部ユーザー', displayName: '表示名', listen: '視聴する', listeners: '視聴者', chat: 'Howlチャット', chatPlaceholder: 'メッセージを入力',
 	chatAnonymously: '匿名で発言', visibility: '公開範囲', followers: 'フォロワー限定', local: 'すーぱーねこのユーザーのみ', public: '全公開',
 	publicDescription: '外部視聴用URLを知っている人は視聴できます。外部ユーザーはチャットを閲覧・投稿できません。', noFollowingStreams: 'フォロー中のHowlはありません。',
+	loadFailed: 'このHowlは利用できないか、終了しました。', playerLabel: 'Howl動画プレイヤー',
 };
 export const howlText = lang.startsWith('ja') ? ja : en;

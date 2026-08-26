@@ -12,7 +12,7 @@ import type { Config } from '@/config.js';
 import { liveStreamSchema } from './_schemas.js';
 
 export const meta = {
-	tags: ['live-stream'], requireCredential: true, prohibitMoved: true, kind: 'write:account',
+	tags: ['live-stream'], requireCredential: true, secure: true, prohibitMoved: true, kind: 'write:account',
 	limit: { duration: 60 * 60 * 1000, max: 10 },
 	res: { type: 'object', optional: false, nullable: false, properties: {
 		stream: liveStreamSchema,
