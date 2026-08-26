@@ -39,7 +39,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<p>{{ howlText.chooseIdentityDescription }}</p>
 				<MkInput v-if="!$i" v-model="guestName"><template #label>{{ howlText.displayName }}</template></MkInput>
 				<div :class="$style.actions">
-					<template v-if="$i"><MkButton primary @click="join(true)">{{ howlText.joinAnonymously }}</MkButton><MkButton @click="join(false)">{{ howlText.joinWithAccount }}</MkButton></template>
+					<template v-if="$i"><MkButton @click="join(true)">{{ howlText.joinAnonymously }}</MkButton><MkButton primary @click="join(false)">{{ howlText.joinWithAccount }}</MkButton></template>
 					<MkButton v-else primary :disabled="!guestName.trim() || !guestToken" @click="joinGuest">{{ howlText.listen }}</MkButton>
 				</div>
 			</section>
