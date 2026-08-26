@@ -3566,7 +3566,7 @@ _drafts:
 
 qr: "二次元コード"
 _liveStreaming:
-  title: "すーぱーねこ Howl"
+  title: "Howl"
   create: "Howlを開始"
   streamTitle: "配信タイトル"
   noFollowingStreams: "フォロー中のライブ配信はありません"
@@ -3597,7 +3597,7 @@ _liveStreaming:
   followers: "フォロワー限定"
   local: "すーぱーねこのユーザーのみ"
   public: "全公開"
-  publicDescription: "外部視聴用URLを知っている人は視聴できます。外部ユーザーはチャットを閲覧・投稿できません。"
+  publicDescription: "視聴用URLを知っている人が視聴できます。すーぱーねこのユーザーはチャットを閲覧・投稿できます。RTSPでの視聴も有効になります。"
 _qr:
   showTabTitle: "表示"
   readTabTitle: "読み取る"

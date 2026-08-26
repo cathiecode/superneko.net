@@ -43,13 +43,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 			<template v-else>
 				<section class="_panel" :class="$style.player">
-					<video ref="videoEl" :controls="isIos" autoplay playsinline :aria-label="howlText.playerLabel" @play="playbackPaused = false" @pause="playbackPaused = true"></video>
+					<video ref="videoEl" :controls="isIos" autoplay playsinline :aria-label="howlText.playerLabel" @playing="handlePlaying" @waiting="playerReady = false" @stalled="playerReady = false" @error="playerReady = false"></video>
 					<div :class="$style.playerControls">
-						<MkButton v-if="!isIos" @click="togglePlayback"><i :class="playbackPaused ? 'ti ti-player-play' : 'ti ti-player-pause'"></i> {{ playbackPaused ? howlText.play : howlText.pause }}</MkButton>
-						<MkButton v-if="!isIos" @click="toggleMute"><i :class="muted ? 'ti ti-volume' : 'ti ti-volume-off'"></i> {{ muted ? howlText.unmute : howlText.mute }}</MkButton>
-						<MkButton :disabled="resyncing" @click="resync"><i class="ti ti-refresh"></i> {{ howlText.resync }}</MkButton>
+						<MkButton v-if="!isIos && playbackBlocked" v-tooltip="howlText.play" :aria-label="howlText.play" @click="safePlay"><i class="ti ti-player-play"></i></MkButton>
+						<MkButton v-if="!isIos" v-tooltip="muted ? howlText.unmute : howlText.mute" :danger="muted" :aria-label="muted ? howlText.unmute : howlText.mute" :aria-pressed="muted" @click="toggleMute"><i :class="muted ? 'ti ti-volume-off' : 'ti ti-volume'"></i></MkButton>
+						<MkButton v-tooltip="howlText.resync" :aria-label="howlText.resync" :disabled="resyncing" @click="resync"><i class="ti ti-refresh"></i></MkButton>
 					</div>
 					<div v-if="stream.status === 'disconnected'" :class="$style.interruption">{{ howlText.temporarilyDisconnected }}</div>
+					<div v-else-if="!playerReady" :class="$style.interruption"><MkLoading/></div>
 				</section>
 				<section v-if="$i" class="_panel _gaps" :class="$style.chat">
 					<h3>{{ howlText.listeners }}</h3>
@@ -109,9 +110,10 @@ const anonymous = ref(true);
 const chatAnonymously = ref(false);
 const chatText = ref('');
 const messages = ref<Misskey.LiveStreamChatMessage[]>([]);
-const playbackPaused = ref(true);
 const muted = ref(false);
 const resyncing = ref(false);
+const playerReady = ref(false);
+const playbackBlocked = ref(false);
 const videoEl = useTemplateRef('videoEl');
 let hls: Hls | null = null;
 let playbackRefreshTimer: number | null = null;
@@ -169,6 +171,8 @@ async function refreshPlayback() {
 
 function stopPlayback() {
 	hls?.destroy(); hls = null; joined.value = false;
+	playerReady.value = false;
+	playbackBlocked.value = false;
 	if (videoEl.value) { videoEl.value.pause(); videoEl.value.removeAttribute('src'); videoEl.value.load(); }
 	if (playbackRefreshTimer) window.clearInterval(playbackRefreshTimer); playbackRefreshTimer = null;
 	if (playerRetryTimer) window.clearTimeout(playerRetryTimer); playerRetryTimer = null;
@@ -176,6 +180,8 @@ function stopPlayback() {
 
 function attachPlayer(url: string, token: string) {
 	currentPlayback = { url, token };
+	playerReady.value = false;
+	playbackBlocked.value = false;
 	hls?.destroy(); hls = null;
 	if (playerRetryTimer) window.clearTimeout(playerRetryTimer); playerRetryTimer = null;
 	if (!videoEl.value) return;
@@ -186,7 +192,7 @@ function attachPlayer(url: string, token: string) {
 			if (resyncPending && hls?.liveSyncPosition != null && videoEl.value) { videoEl.value.currentTime = hls.liveSyncPosition; resyncPending = false; }
 			void safePlay();
 		});
-		hls.on(Hls.Events.ERROR, (_event, data) => { if (data.fatal) schedulePlayerRetry(); });
+		hls.on(Hls.Events.ERROR, (_event, data) => { if (data.fatal) { playerReady.value = false; schedulePlayerRetry(); } });
 		hls.loadSource(url); hls.attachMedia(videoEl.value);
 	} else {
 		videoEl.value.src = `${url}?token=${encodeURIComponent(token)}`;
@@ -209,10 +215,10 @@ async function resync() {
 }
 
 async function safePlay() {
-	try { await videoEl.value?.play(); } catch { playbackPaused.value = true; }
+	try { await videoEl.value?.play(); } catch { playbackBlocked.value = true; }
 }
 
-function togglePlayback() { if (videoEl.value?.paused) void safePlay(); else videoEl.value?.pause(); }
+function handlePlaying() { playerReady.value = true; playbackBlocked.value = false; }
 
 function toggleMute() { if (videoEl.value) { videoEl.value.muted = !videoEl.value.muted; muted.value = videoEl.value.muted; } }
 
