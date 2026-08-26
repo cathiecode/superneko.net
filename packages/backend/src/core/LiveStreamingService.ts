@@ -5,6 +5,7 @@
 
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
+import * as Redis from 'ioredis';
 import { DataSource, In, IsNull, Not, QueryFailedError } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
@@ -46,15 +47,14 @@ export type PackedLiveStreamChatMessage = {
 
 @Injectable()
 export class LiveStreamingService {
+	private static readonly sessionTtlSeconds = 24 * 60 * 60;
 	private disconnectTimers = new Map<string, NodeJS.Timeout>();
 	private waitingTimers = new Map<string, NodeJS.Timeout>();
-	private pendingReaders = new Map<string, { streamId: string; identity: ViewerIdentity; timer: NodeJS.Timeout }>();
-	private readers = new Map<string, Map<string, ViewerIdentity>>();
-	private participants = new Map<string, number>();
 
 	constructor(
 		@Inject(DI.config) private config: Config,
 		@Inject(DI.db) private db: DataSource,
+		@Inject(DI.redis) private redisClient: Redis.Redis,
 		private idService: IdService,
 		private globalEventService: GlobalEventService,
 		private userEntityService: UserEntityService,
@@ -196,7 +196,7 @@ export class LiveStreamingService {
 
 	@bindThis
 	public async join(stream: MiLiveStream, user: MiUser, anonymous: boolean) {
-		this.rememberParticipant(stream.id, user.id);
+		await this.rememberParticipant(stream.id, user.id);
 		const token = this.signReadToken(stream.id, { sessionId: randomBytes(12).toString('base64url'), anonymous, userId: user.id });
 		return { playbackUrl: `${this.liveConfig.publicUrl}/${stream.mediaPath}/index.m3u8`, token };
 	}
@@ -220,24 +220,21 @@ export class LiveStreamingService {
 					const user = await this.db.getRepository(MiUser).findOneBy({ id: identity.userId });
 					if (user == null || !await this.canView(stream, user)) return false;
 				}
-				if (readerId) this.rememberPendingReader(readerId, stream.id, identity);
+				if (readerId) await this.rememberPendingReader(readerId, stream.id, identity);
 				return true;
 			}
 			const isPublicCapability = stream.visibility === 'public' && stream.guestTokenHash != null && this.hashMatches(token, stream.guestTokenHash);
-			if (isPublicCapability && readerId) this.rememberPendingReader(readerId, stream.id, { sessionId: readerId, anonymous: true });
+			if (isPublicCapability && readerId) await this.rememberPendingReader(readerId, stream.id, { sessionId: readerId, anonymous: true });
 			return isPublicCapability;
 		}
 		return false;
 	}
 
-	private rememberPendingReader(readerId: string, streamId: string, identity: ViewerIdentity): void {
-		const previous = this.pendingReaders.get(readerId); if (previous) clearTimeout(previous.timer);
-		if (this.pendingReaders.size >= 10_000) {
-			const oldestId = this.pendingReaders.keys().next().value;
-			if (oldestId) { clearTimeout(this.pendingReaders.get(oldestId)!.timer); this.pendingReaders.delete(oldestId); }
-		}
-		const timer = setTimeout(() => this.pendingReaders.delete(readerId), 30_000); timer.unref();
-		this.pendingReaders.set(readerId, { streamId, identity, timer });
+	private async rememberPendingReader(readerId: string, streamId: string, identity: ViewerIdentity): Promise<void> {
+		await this.redisClient.multi()
+			.hset(this.pendingReadersKey(streamId), readerId, JSON.stringify(identity))
+			.expire(this.pendingReadersKey(streamId), LiveStreamingService.sessionTtlSeconds)
+			.exec();
 	}
 
 	@bindThis
@@ -271,10 +268,8 @@ export class LiveStreamingService {
 		if (stream == null) return;
 		const timer = this.disconnectTimers.get(id); if (timer) clearTimeout(timer); this.disconnectTimers.delete(id);
 		const waitingTimer = this.waitingTimers.get(id); if (waitingTimer) clearTimeout(waitingTimer); this.waitingTimers.delete(id);
-		this.readers.delete(id);
-		for (const key of this.participants.keys()) if (key.startsWith(`${id}:`)) this.participants.delete(key);
-		for (const [readerId, pending] of this.pendingReaders) if (pending.streamId === id) { clearTimeout(pending.timer); this.pendingReaders.delete(readerId); }
 		stream.status = 'ended'; stream.endedAt = new Date(); await repository.save(stream);
+		await this.redisClient.del(this.readersKey(id), this.pendingReadersKey(id), this.participantsKey(id)).catch(() => { /* TTL is the cleanup fallback. */ });
 		await this.publishChanged(stream); this.globalEventService.publishLiveStream(id, 'ended', null);
 		await this.kickPublisher(stream.mediaPath);
 	}
@@ -283,11 +278,14 @@ export class LiveStreamingService {
 	public async readerOnline(path: string, readerId: string): Promise<void> {
 		const stream = await this.db.getRepository(MiLiveStream).findOneBy({ mediaPath: path, status: Not('ended') });
 		if (stream == null || !readerId) return;
-		const pending = this.pendingReaders.get(readerId);
-		const identity = pending?.identity ?? { sessionId: readerId, anonymous: true };
-		if (pending) clearTimeout(pending.timer); this.pendingReaders.delete(readerId);
-		const streamReaders = this.readers.get(stream.id) ?? new Map<string, ViewerIdentity>();
-		streamReaders.set(readerId, identity); this.readers.set(stream.id, streamReaders);
+		const pendingKey = this.pendingReadersKey(stream.id);
+		const pending = await this.redisClient.hget(pendingKey, readerId);
+		const identity = pending == null ? { sessionId: readerId, anonymous: true } : this.parseViewerIdentity(pending, readerId);
+		await this.redisClient.multi()
+			.hset(this.readersKey(stream.id), readerId, JSON.stringify(identity))
+			.expire(this.readersKey(stream.id), LiveStreamingService.sessionTtlSeconds)
+			.hdel(pendingKey, readerId)
+			.exec();
 		await this.publishViewers(stream.id);
 	}
 
@@ -295,12 +293,12 @@ export class LiveStreamingService {
 	public async readerOffline(path: string, readerId: string): Promise<void> {
 		const stream = await this.db.getRepository(MiLiveStream).findOneBy({ mediaPath: path });
 		if (stream == null) return;
-		this.readers.get(stream.id)?.delete(readerId);
+		await this.redisClient.hdel(this.readersKey(stream.id), readerId);
 		await this.publishViewers(stream.id);
 	}
 
 	private async publishViewers(streamId: string): Promise<void> {
-		const identities = [...(this.readers.get(streamId)?.values() ?? [])];
+		const identities = (await this.redisClient.hvals(this.readersKey(streamId))).map(value => this.parseViewerIdentity(value));
 		const unique = [...new Map(identities.map(identity => [identity.sessionId, identity])).values()];
 		const anonymousCount = unique.filter(identity => identity.anonymous).length;
 		const guests = unique.filter(identity => !identity.anonymous && identity.guestName).map(identity => ({ id: identity.sessionId, name: identity.guestName!, external: true as const }));
@@ -328,22 +326,28 @@ export class LiveStreamingService {
 		this.globalEventService.publishLiveStream(stream.id, 'chatMessage', packed); return packed;
 	}
 
-	private rememberParticipant(streamId: string, userId: string): void {
-		if (this.participants.size >= 10_000) {
-			const now = Date.now();
-			for (const [key, expiresAt] of this.participants) if (expiresAt <= now) this.participants.delete(key);
-			const oldestKey = this.participants.keys().next().value;
-			if (this.participants.size >= 10_000 && oldestKey) this.participants.delete(oldestKey);
-		}
-		this.participants.set(`${streamId}:${userId}`, Date.now() + 5 * 60 * 1000);
+	private async rememberParticipant(streamId: string, userId: string): Promise<void> {
+		await this.redisClient.multi()
+			.hset(this.participantsKey(streamId), userId, '1')
+			.expire(this.participantsKey(streamId), LiveStreamingService.sessionTtlSeconds)
+			.exec();
 	}
 
 	@bindThis
-	public hasJoined(streamId: string, userId: string): boolean {
-		const key = `${streamId}:${userId}`;
-		const expiresAt = this.participants.get(key);
-		if (expiresAt == null || expiresAt <= Date.now()) { this.participants.delete(key); return false; }
-		return true;
+	public async hasJoined(streamId: string, userId: string): Promise<boolean> {
+		return await this.redisClient.hexists(this.participantsKey(streamId), userId) === 1;
+	}
+
+	private readersKey(streamId: string): string { return `howl:{${streamId}}:readers`; }
+	private participantsKey(streamId: string): string { return `howl:{${streamId}}:participants`; }
+	private pendingReadersKey(streamId: string): string { return `howl:{${streamId}}:pending-readers`; }
+
+	private parseViewerIdentity(value: string, fallbackSessionId = ''): ViewerIdentity {
+		try {
+			const identity = JSON.parse(value) as Partial<ViewerIdentity>;
+			if (typeof identity.sessionId === 'string' && typeof identity.anonymous === 'boolean') return identity as ViewerIdentity;
+		} catch { /* Ignore malformed or stale ephemeral state. */ }
+		return { sessionId: fallbackSessionId, anonymous: true };
 	}
 
 	@bindThis

@@ -29,8 +29,11 @@ export class LiveStreamChannel extends Channel {
 		const stream = await this.liveStreamingService.getActive(streamId);
 		if (stream == null || !await this.liveStreamingService.canView(stream, this.user ?? null)) return false;
 		this.subscriber.on(`liveStream:${streamId}`, data => {
-			if ((data.type === 'chatMessage' || data.type === 'chatMessageDeleted') && (this.user == null || !this.liveStreamingService.hasJoined(streamId, this.user.id))) return;
-			this.send(data.type, data.body);
+			if (data.type !== 'chatMessage' && data.type !== 'chatMessageDeleted') return this.send(data.type, data.body);
+			if (this.user == null) return;
+			void this.liveStreamingService.hasJoined(streamId, this.user.id)
+				.then(joined => { if (joined) this.send(data.type, data.body); })
+				.catch(() => { /* Fail closed when the participation store is unavailable. */ });
 		});
 		return true;
 	}
