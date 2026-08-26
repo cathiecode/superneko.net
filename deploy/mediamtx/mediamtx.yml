@@ -1,0 +1,49 @@
+# SPDX-FileCopyrightText: bluenviron and MediaMTX contributors
+# SPDX-License-Identifier: MIT
+
+logLevel: info
+authMethod: http
+authHTTPAddress: http://web:3000/live/mediamtx/auth?secret=CHANGE_ME
+authHTTPExclude:
+  - action: api
+api: true
+apiAddress: :9997
+apiAllowOrigins: []
+rtsp: true
+rtspAddress: :8554
+rtspTransports: [tcp]
+srt: false
+playback: false
+metrics: false
+pprof: false
+rtmp: true
+rtmpAddress: :1935
+rtmpEncryption: "no"
+hls: true
+hlsAddress: :8888
+hlsVariant: lowLatency
+hlsAlwaysRemux: false
+hlsAllowOrigins:
+  - https://superneko.net
+  - http://localhost:3000
+hlsSegmentCount: 7
+hlsSegmentDuration: 1s
+hlsPartDuration: 200ms
+hlsDirectory: ""
+hlsMuxerCloseAfter: 60s
+webrtc: false
+moq: false
+pathDefaults:
+  source: publisher
+  overridePublisher: false
+  runOnOnline: >-
+    wget -qO- --header='Content-Type: application/json' --post-data='{}' "http://web:3000/live/mediamtx/event?secret=CHANGE_ME&event=online&path=$MTX_PATH"
+  runOnOffline: >-
+    wget -qO- --header='Content-Type: application/json' --post-data='{}' "http://web:3000/live/mediamtx/event?secret=CHANGE_ME&event=offline&path=$MTX_PATH"
+  runOnRead: >-
+    wget -qO- --header='Content-Type: application/json' --post-data='{}' "http://web:3000/live/mediamtx/event?secret=CHANGE_ME&event=read&path=$MTX_PATH&readerId=$MTX_READER_ID"
+  runOnReadRestart: false
+  runOnUnread: >-
+    wget -qO- --header='Content-Type: application/json' --post-data='{}' "http://web:3000/live/mediamtx/event?secret=CHANGE_ME&event=unread&path=$MTX_PATH&readerId=$MTX_READER_ID"
+paths:
+  all_others:
