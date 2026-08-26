@@ -72,7 +72,7 @@ export type Channels = {
 		params: { streamId: string };
 		events: {
 			streamChanged: (payload: LiveStream) => void;
-			participantJoined: (payload: { anonymous: boolean; user?: UserLite }) => void;
+			viewersChanged: (payload: { anonymousCount: number; guests: { name: string; external: true }[]; users: UserLite[] }) => void;
 			chatMessage: (payload: LiveStreamChatMessage) => void;
 			chatMessageDeleted: (payload: { id: string }) => void;
 			ended: () => void;

@@ -3001,6 +3001,15 @@ export type paths = {
          */
         post: operations['live-stream___following'];
     };
+    '/live-stream/guest-join': {
+        /**
+         * live-stream/guest-join
+         * @description No description provided.
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['live-stream___guest-join'];
+    };
     '/live-stream/join': {
         /**
          * live-stream/join
@@ -3015,7 +3024,7 @@ export type paths = {
          * live-stream/show
          * @description No description provided.
          *
-         *     **Credential required**: *Yes* / **Permission**: *read:account*
+         *     **Credential required**: *No*
          */
         post: operations['live-stream___show'];
     };
@@ -9546,6 +9555,15 @@ export interface operations {
             };
             /** @description I'm Ai */
             418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -29071,6 +29089,15 @@ export interface operations {
                     'application/json': components['schemas']['Error'];
                 };
             };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
             /** @description Internal server error */
             500: {
                 headers: {
@@ -29247,6 +29274,11 @@ export interface operations {
             content: {
                 'application/json': {
                     title: string;
+                    /**
+                     * @default local
+                     * @enum {string}
+                     */
+                    visibility?: 'followers' | 'local' | 'public';
                 };
             };
         };
@@ -29263,6 +29295,8 @@ export interface operations {
                             id: string;
                             title: string;
                             /** @enum {string} */
+                            visibility: 'followers' | 'local' | 'public';
+                            /** @enum {string} */
                             status: 'waiting' | 'live' | 'disconnected' | 'ended';
                             /** Format: date-time */
                             createdAt: string;
@@ -29273,6 +29307,8 @@ export interface operations {
                             user: components['schemas']['UserLite'];
                         };
                         publishUrl: string;
+                        guestUrl: string | null;
+                        rtspUrl: string | null;
                     };
                 };
             };
@@ -29384,6 +29420,15 @@ export interface operations {
                     'application/json': components['schemas']['Error'];
                 };
             };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
             /** @description Internal server error */
             500: {
                 headers: {
@@ -29407,6 +29452,8 @@ export interface operations {
                         /** Format: misskey:id */
                         id: string;
                         title: string;
+                        /** @enum {string} */
+                        visibility: 'followers' | 'local' | 'public';
                         /** @enum {string} */
                         status: 'waiting' | 'live' | 'disconnected' | 'ended';
                         /** Format: date-time */
@@ -29448,6 +29495,86 @@ export interface operations {
             };
             /** @description I'm Ai */
             418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'live-stream___guest-join': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    streamId: string;
+                    guestToken: string;
+                    name: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        playbackUrl: string;
+                        token: string;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -29557,6 +29684,8 @@ export interface operations {
                         /** Format: misskey:id */
                         id: string;
                         title: string;
+                        /** @enum {string} */
+                        visibility: 'followers' | 'local' | 'public';
                         /** @enum {string} */
                         status: 'waiting' | 'live' | 'disconnected' | 'ended';
                         /** Format: date-time */

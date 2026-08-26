@@ -493,6 +493,8 @@ import type {
 	LiveStreamCreateResponse,
 	LiveStreamFinishRequest,
 	LiveStreamFollowingResponse,
+	LiveStreamGuestJoinRequest,
+	LiveStreamGuestJoinResponse,
 	LiveStreamJoinRequest,
 	LiveStreamJoinResponse,
 	LiveStreamShowRequest,
@@ -1010,6 +1012,7 @@ export type Endpoints = {
 	'live-stream/create': { req: LiveStreamCreateRequest; res: LiveStreamCreateResponse };
 	'live-stream/finish': { req: LiveStreamFinishRequest; res: EmptyResponse };
 	'live-stream/following': { req: EmptyRequest; res: LiveStreamFollowingResponse };
+	'live-stream/guest-join': { req: LiveStreamGuestJoinRequest; res: LiveStreamGuestJoinResponse };
 	'live-stream/join': { req: LiveStreamJoinRequest; res: LiveStreamJoinResponse };
 	'live-stream/show': { req: LiveStreamShowRequest; res: LiveStreamShowResponse };
 	'meta': { req: MetaRequest; res: MetaResponse };

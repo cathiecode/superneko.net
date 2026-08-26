@@ -11,5 +11,5 @@ export const meta = { tags: ['live-stream'], requireCredential: true, kind: 'rea
 export const paramDef = { type: 'object', properties: { streamId: { type: 'string', format: 'misskey:id' } }, required: ['streamId'] } as const;
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
-	constructor(service: LiveStreamingService) { super(meta, paramDef, async (ps, me) => { const stream = await service.getActive(ps.streamId); if (!stream) throw new ApiError(meta.errors.noSuchStream); return await service.listChatMessages(stream, me); }); }
+	constructor(service: LiveStreamingService) { super(meta, paramDef, async (ps, me) => { const stream = await service.getActive(ps.streamId); if (!stream || !await service.canView(stream, me)) throw new ApiError(meta.errors.noSuchStream); return await service.listChatMessages(stream, me); }); }
 }

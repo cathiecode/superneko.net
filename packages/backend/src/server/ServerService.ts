@@ -164,16 +164,18 @@ export class ServerService implements OnApplicationShutdown {
 		fastify.register(this.oauth2ProviderService.createTokenServer, { prefix: '/oauth/token' });
 		fastify.register(this.healthServerService.createServer, { prefix: '/healthz' });
 
-		fastify.post<{ Querystring: { secret?: string }; Body: { action?: string; path?: string; token?: string } }>('/live/mediamtx/auth', async (request, reply) => {
+		fastify.post<{ Querystring: { secret?: string }; Body: { action?: string; path?: string; token?: string; id?: string } }>('/live/mediamtx/auth', async (request, reply) => {
 			if (this.config.liveStreaming == null || request.query.secret !== this.config.liveStreaming.callbackSecret) return await reply.code(404).send();
-			const allowed = await this.liveStreamingService.authenticateMedia(request.body.action ?? '', request.body.path ?? '', request.body.token ?? '');
+			const allowed = await this.liveStreamingService.authenticateMedia(request.body.action ?? '', request.body.path ?? '', request.body.token ?? '', request.body.id);
 			return await reply.code(allowed ? 200 : 403).send();
 		});
 
-		fastify.post<{ Querystring: { secret?: string; event?: string; path?: string } }>('/live/mediamtx/event', async (request, reply) => {
+		fastify.post<{ Querystring: { secret?: string; event?: string; path?: string; readerId?: string } }>('/live/mediamtx/event', async (request, reply) => {
 			if (this.config.liveStreaming == null || request.query.secret !== this.config.liveStreaming.callbackSecret) return await reply.code(404).send();
 			if (request.query.event === 'online') await this.liveStreamingService.mediaOnline(request.query.path ?? '');
 			if (request.query.event === 'offline') await this.liveStreamingService.mediaOffline(request.query.path ?? '');
+			if (request.query.event === 'read') await this.liveStreamingService.readerOnline(request.query.path ?? '', request.query.readerId ?? '');
+			if (request.query.event === 'unread') await this.liveStreamingService.readerOffline(request.query.path ?? '', request.query.readerId ?? '');
 			return await reply.code(204).send();
 		});
 

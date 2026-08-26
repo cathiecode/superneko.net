@@ -31,6 +31,12 @@ export class MiLiveStream {
 	@Column('varchar', { length: 64 })
 	public publishTokenHash: string;
 
+	@Column('varchar', { length: 16, default: 'local' })
+	public visibility: 'followers' | 'local' | 'public';
+
+	@Column('varchar', { length: 64, nullable: true })
+	public guestTokenHash: string | null;
+
 	@Index()
 	@Column('varchar', { length: 32, default: 'waiting' })
 	public status: 'waiting' | 'live' | 'disconnected' | 'ended';

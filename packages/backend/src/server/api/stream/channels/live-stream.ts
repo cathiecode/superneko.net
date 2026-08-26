@@ -24,7 +24,9 @@ export class LiveStreamChannel extends Channel {
 
 	@bindThis
 	public async init(params: JsonObject): Promise<boolean> {
-		if (typeof params.streamId !== 'string' || await this.liveStreamingService.getActive(params.streamId) == null) return false;
+		if (typeof params.streamId !== 'string') return false;
+		const stream = await this.liveStreamingService.getActive(params.streamId);
+		if (stream == null || !await this.liveStreamingService.canView(stream, this.user)) return false;
 		this.subscriber.on(`liveStream:${params.streamId}`, data => this.send(data.type, data.body));
 		return true;
 	}

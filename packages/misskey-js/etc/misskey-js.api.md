@@ -2049,6 +2049,8 @@ declare namespace entities {
         LiveStreamCreateResponse,
         LiveStreamFinishRequest,
         LiveStreamFollowingResponse,
+        LiveStreamGuestJoinRequest,
+        LiveStreamGuestJoinResponse,
         LiveStreamJoinRequest,
         LiveStreamJoinResponse,
         LiveStreamShowRequest,
@@ -2936,6 +2938,12 @@ type LiveStreamFinishRequest = operations['live-stream___finish']['requestBody']
 
 // @public (undocumented)
 type LiveStreamFollowingResponse = operations['live-stream___following']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LiveStreamGuestJoinRequest = operations['live-stream___guest-join']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LiveStreamGuestJoinResponse = operations['live-stream___guest-join']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type LiveStreamJoinRequest = operations['live-stream___join']['requestBody']['content']['application/json'];

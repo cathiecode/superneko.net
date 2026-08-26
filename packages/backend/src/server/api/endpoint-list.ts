@@ -179,6 +179,7 @@ export * as 'live-stream/create' from './endpoints/live-stream/create.js';
 export * as 'live-stream/show' from './endpoints/live-stream/show.js';
 export * as 'live-stream/following' from './endpoints/live-stream/following.js';
 export * as 'live-stream/join' from './endpoints/live-stream/join.js';
+export * as 'live-stream/guest-join' from './endpoints/live-stream/guest-join.js';
 export * as 'live-stream/finish' from './endpoints/live-stream/finish.js';
 export * as 'live-stream/chat-messages' from './endpoints/live-stream/chat-messages.js';
 export * as 'live-stream/chat-send' from './endpoints/live-stream/chat-send.js';

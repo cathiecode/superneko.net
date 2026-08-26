@@ -96,7 +96,7 @@ export interface MainEventTypes {
 
 export interface LiveStreamEventTypes {
 	streamChanged: PackedLiveStream;
-	participantJoined: { anonymous: boolean; user?: Packed<'UserLite'> };
+	viewersChanged: { anonymousCount: number; guests: { name: string; external: true }[]; users: Packed<'UserLite'>[] };
 	chatMessage: PackedLiveStreamChatMessage;
 	chatMessageDeleted: { id: string };
 	ended: null;

@@ -117,6 +117,8 @@ type Source = {
 		callbackSecret: string;
 		tokenSecret: string;
 		disconnectGracePeriod?: number;
+		waitingTimeout?: number;
+		rtspUrl?: string;
 	};
 	videoThumbnailGenerator?: string;
 
@@ -228,6 +230,8 @@ export type Config = {
 		callbackSecret: string;
 		tokenSecret: string;
 		disconnectGracePeriod: number;
+		waitingTimeout: number;
+		rtspUrl: string;
 	} | null;
 	redis: RedisOptions & RedisOptionsSource;
 	redisForPubsub: RedisOptions & RedisOptionsSource;
@@ -372,6 +376,8 @@ export function loadConfig(): Config {
 			callbackSecret: config.liveStreaming.callbackSecret,
 			tokenSecret: config.liveStreaming.tokenSecret,
 			disconnectGracePeriod: config.liveStreaming.disconnectGracePeriod ?? 45,
+			waitingTimeout: config.liveStreaming.waitingTimeout ?? 600,
+			rtspUrl: (config.liveStreaming.rtspUrl ?? 'rtsp://localhost:8554').replace(/\/$/, ''),
 		} : null,
 		userAgent: `Misskey/${version} (${config.url})`,
 		frontendManifestExists: frontendManifestExists,

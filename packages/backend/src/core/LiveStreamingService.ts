@@ -18,12 +18,22 @@ import type { Packed } from '@/misc/json-schema.js';
 export type PackedLiveStream = {
 	id: string;
 	title: string;
+	visibility: MiLiveStream['visibility'];
 	status: MiLiveStream['status'];
 	createdAt: string;
 	startedAt: string | null;
 	disconnectedAt: string | null;
 	user: Packed<'UserLite'>;
 };
+
+type ViewerIdentity = {
+	sessionId: string;
+	anonymous: boolean;
+	userId?: string;
+	guestName?: string;
+};
+
+type ReadTokenPayload = ViewerIdentity & { streamId: string; exp: number };
 
 export type PackedLiveStreamChatMessage = {
 	id: string;
@@ -36,6 +46,9 @@ export type PackedLiveStreamChatMessage = {
 @Injectable()
 export class LiveStreamingService {
 	private disconnectTimers = new Map<string, NodeJS.Timeout>();
+	private waitingTimers = new Map<string, NodeJS.Timeout>();
+	private pendingReaders = new Map<string, ViewerIdentity>();
+	private readers = new Map<string, Map<string, ViewerIdentity>>();
 
 	constructor(
 		@Inject(DI.config) private config: Config,
@@ -59,6 +72,7 @@ export class LiveStreamingService {
 		return {
 			id: stream.id,
 			title: stream.title,
+			visibility: stream.visibility,
 			status: stream.status,
 			createdAt: this.idService.parse(stream.id).date.toISOString(),
 			startedAt: stream.startedAt?.toISOString() ?? null,
@@ -79,16 +93,18 @@ export class LiveStreamingService {
 	}
 
 	@bindThis
-	public async create(user: MiUser, title: string): Promise<{ stream: MiLiveStream; publishToken: string }> {
+	public async create(user: MiUser, title: string, visibility: MiLiveStream['visibility']): Promise<{ stream: MiLiveStream; publishToken: string; guestToken: string | null }> {
 		const repository = this.db.getRepository(MiLiveStream);
 		if (await repository.existsBy({ userId: user.id, status: Not('ended') })) throw new Error('ACTIVE_LIVE_STREAM_EXISTS');
 		const publishToken = randomBytes(24).toString('base64url');
+		const guestToken = visibility === 'public' ? randomBytes(24).toString('base64url') : null;
 		let stream: MiLiveStream;
 		try {
 			stream = await repository.save({
 				id: this.idService.gen(), userId: user.id, title,
 				mediaPath: `live/${randomBytes(18).toString('base64url')}`,
 				publishTokenHash: this.hash(publishToken), status: 'waiting',
+				visibility, guestTokenHash: guestToken == null ? null : this.hash(guestToken),
 				startedAt: null, disconnectedAt: null, endedAt: null,
 			});
 		} catch (error) {
@@ -96,13 +112,18 @@ export class LiveStreamingService {
 			throw error;
 		}
 		await this.notifyFollowers(stream);
-		return { stream, publishToken };
+		this.scheduleWaitingExpiry(stream);
+		return { stream, publishToken, guestToken };
 	}
 
 	@bindThis
 	public async getActive(id: string): Promise<MiLiveStream | null> {
 		const stream = await this.db.getRepository(MiLiveStream).findOneBy({ id, status: Not('ended') });
 		if (stream?.status === 'disconnected' && this.isDisconnectGraceExpired(stream)) {
+			await this.finish(stream.id);
+			return null;
+		}
+		if (stream?.status === 'waiting' && this.isWaitingExpired(stream)) {
 			await this.finish(stream.id);
 			return null;
 		}
@@ -120,6 +141,7 @@ export class LiveStreamingService {
 		const active = [];
 		for (const stream of streams) {
 			if (stream.status === 'disconnected' && this.isDisconnectGraceExpired(stream)) await this.finish(stream.id);
+			else if (stream.status === 'waiting' && this.isWaitingExpired(stream)) await this.finish(stream.id);
 			else active.push(stream);
 		}
 		return active;
@@ -129,37 +151,68 @@ export class LiveStreamingService {
 		return stream.disconnectedAt != null && stream.disconnectedAt.getTime() + this.liveConfig.disconnectGracePeriod * 1000 <= Date.now();
 	}
 
-	private signReadToken(streamId: string, userId: string): string {
-		const payload = Buffer.from(JSON.stringify({ streamId, userId, exp: Math.floor(Date.now() / 1000) + 300 })).toString('base64url');
+	private isWaitingExpired(stream: MiLiveStream): boolean {
+		return stream.status === 'waiting' && this.idService.parse(stream.id).date.getTime() + this.liveConfig.waitingTimeout * 1000 <= Date.now();
+	}
+
+	private scheduleWaitingExpiry(stream: MiLiveStream): void {
+		const timer = setTimeout(() => void this.finish(stream.id), this.liveConfig.waitingTimeout * 1000);
+		timer.unref();
+		this.waitingTimers.set(stream.id, timer);
+	}
+
+	private signReadToken(streamId: string, identity: ViewerIdentity): string {
+		const payload = Buffer.from(JSON.stringify({ streamId, ...identity, exp: Math.floor(Date.now() / 1000) + 300 })).toString('base64url');
 		return `${payload}.${createHmac('sha256', this.liveConfig.tokenSecret).update(payload).digest('base64url')}`;
 	}
 
-	private verifyReadToken(token: string, streamId: string): boolean {
+	private verifyReadToken(token: string, streamId: string): ReadTokenPayload | null {
 		const [payload, signature] = token.split('.');
-		if (!payload || !signature) return false;
+		if (!payload || !signature) return null;
 		const expected = createHmac('sha256', this.liveConfig.tokenSecret).update(payload).digest('base64url');
-		if (signature.length !== expected.length || !timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return false;
+		if (signature.length !== expected.length || !timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
 		try {
-			const data = JSON.parse(Buffer.from(payload, 'base64url').toString()) as { streamId: string; userId: string; exp: number };
-			return data.streamId === streamId && data.exp >= Math.floor(Date.now() / 1000) && typeof data.userId === 'string';
-		} catch { return false; }
+			const data = JSON.parse(Buffer.from(payload, 'base64url').toString()) as ReadTokenPayload;
+			return data.streamId === streamId && data.exp >= Math.floor(Date.now() / 1000) && typeof data.sessionId === 'string' ? data : null;
+		} catch { return null; }
+	}
+
+	@bindThis
+	public async canView(stream: MiLiveStream, user: MiUser | null): Promise<boolean> {
+		if (stream.visibility === 'public') return true;
+		if (user == null || user.host != null) return false;
+		if (stream.visibility === 'local' || stream.userId === user.id) return true;
+		return await this.db.getRepository(MiFollowing).existsBy({ followerId: user.id, followeeId: stream.userId, followeeHost: IsNull() });
 	}
 
 	@bindThis
 	public async join(stream: MiLiveStream, user: MiUser, anonymous: boolean) {
-		const token = this.signReadToken(stream.id, user.id);
-		this.globalEventService.publishLiveStream(stream.id, 'participantJoined', anonymous ? { anonymous: true } : {
-			anonymous: false, user: await this.userEntityService.pack(user.id, user, { schema: 'UserLite' }),
-		});
+		const token = this.signReadToken(stream.id, { sessionId: randomBytes(12).toString('base64url'), anonymous, userId: user.id });
 		return { playbackUrl: `${this.liveConfig.publicUrl}/${stream.mediaPath}/index.m3u8`, token };
 	}
 
 	@bindThis
-	public async authenticateMedia(action: string, path: string, token: string): Promise<boolean> {
+	public async joinGuest(stream: MiLiveStream, guestToken: string, name: string) {
+		if (stream.visibility !== 'public' || stream.guestTokenHash == null || this.hash(guestToken) !== stream.guestTokenHash) return null;
+		const token = this.signReadToken(stream.id, { sessionId: randomBytes(12).toString('base64url'), anonymous: false, guestName: name });
+		return { playbackUrl: `${this.liveConfig.publicUrl}/${stream.mediaPath}/index.m3u8`, token };
+	}
+
+	@bindThis
+	public async authenticateMedia(action: string, path: string, token: string, readerId?: string): Promise<boolean> {
 		const stream = await this.db.getRepository(MiLiveStream).findOneBy({ mediaPath: path, status: Not('ended') });
 		if (stream == null) return false;
 		if (action === 'publish') return timingSafeEqual(Buffer.from(this.hash(token)), Buffer.from(stream.publishTokenHash));
-		if (action === 'read') return this.verifyReadToken(token, stream.id);
+		if (action === 'read') {
+			const identity = this.verifyReadToken(token, stream.id);
+			if (identity != null) {
+				if (readerId) this.pendingReaders.set(readerId, identity);
+				return true;
+			}
+			const isPublicCapability = stream.visibility === 'public' && stream.guestTokenHash != null && this.hash(token) === stream.guestTokenHash;
+			if (isPublicCapability && readerId) this.pendingReaders.set(readerId, { sessionId: readerId, anonymous: true });
+			return isPublicCapability;
+		}
 		return false;
 	}
 
@@ -171,6 +224,7 @@ export class LiveStreamingService {
 		const timer = this.disconnectTimers.get(stream.id);
 		if (timer) clearTimeout(timer);
 		this.disconnectTimers.delete(stream.id);
+		const waitingTimer = this.waitingTimers.get(stream.id); if (waitingTimer) clearTimeout(waitingTimer); this.waitingTimers.delete(stream.id);
 		stream.status = 'live'; stream.startedAt ??= new Date(); stream.disconnectedAt = null;
 		await repository.save(stream); await this.publishChanged(stream);
 	}
@@ -192,9 +246,40 @@ export class LiveStreamingService {
 		const stream = await repository.findOneBy({ id, status: Not('ended') });
 		if (stream == null) return;
 		const timer = this.disconnectTimers.get(id); if (timer) clearTimeout(timer); this.disconnectTimers.delete(id);
+		const waitingTimer = this.waitingTimers.get(id); if (waitingTimer) clearTimeout(waitingTimer); this.waitingTimers.delete(id);
+		this.readers.delete(id);
 		stream.status = 'ended'; stream.endedAt = new Date(); await repository.save(stream);
 		await this.publishChanged(stream); this.globalEventService.publishLiveStream(id, 'ended', null);
 		await this.kickPublisher(stream.mediaPath);
+	}
+
+	@bindThis
+	public async readerOnline(path: string, readerId: string): Promise<void> {
+		const stream = await this.db.getRepository(MiLiveStream).findOneBy({ mediaPath: path, status: Not('ended') });
+		if (stream == null || !readerId) return;
+		const identity = this.pendingReaders.get(readerId) ?? { sessionId: readerId, anonymous: true };
+		this.pendingReaders.delete(readerId);
+		const streamReaders = this.readers.get(stream.id) ?? new Map<string, ViewerIdentity>();
+		streamReaders.set(readerId, identity); this.readers.set(stream.id, streamReaders);
+		await this.publishViewers(stream.id);
+	}
+
+	@bindThis
+	public async readerOffline(path: string, readerId: string): Promise<void> {
+		const stream = await this.db.getRepository(MiLiveStream).findOneBy({ mediaPath: path });
+		if (stream == null) return;
+		this.readers.get(stream.id)?.delete(readerId);
+		await this.publishViewers(stream.id);
+	}
+
+	private async publishViewers(streamId: string): Promise<void> {
+		const identities = [...(this.readers.get(streamId)?.values() ?? [])];
+		const unique = [...new Map(identities.map(identity => [identity.sessionId, identity])).values()];
+		const anonymousCount = unique.filter(identity => identity.anonymous).length;
+		const guests = unique.filter(identity => !identity.anonymous && identity.guestName).map(identity => ({ name: identity.guestName!, external: true as const }));
+		const userIds = [...new Set(unique.filter(identity => !identity.anonymous && identity.userId).map(identity => identity.userId!))];
+		const users = await Promise.all(userIds.map(userId => this.userEntityService.pack(userId, null, { schema: 'UserLite' })));
+		this.globalEventService.publishLiveStream(streamId, 'viewersChanged', { anonymousCount, guests, users });
 	}
 
 	private async kickPublisher(path: string): Promise<void> {
